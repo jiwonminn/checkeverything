@@ -121,7 +121,7 @@ flowchart TB
 | **Server-side URL fetch** | Citations are checked against real page excerpts, not just link text in the AI answer |
 | **Two Gemini calls (trust)** | Call 1: extract claims + category scores. Call 2: match claims to source excerpts. With `USE_ADK=true`, both steps run as ADK `SequentialAgent` (`trust_extractor_agent` → `trust_matcher_agent`) |
 | **Heuristic score blending** | Source quality and citation accuracy combine Gemini judgment with reachability and support-label signals |
-| **ADK for code review only** | Trust pipeline uses ADK `SequentialAgent` (extract → match) when `USE_ADK=true`; code review uses ADK `ParallelAgent` + coordinator |
+| **ADK where orchestration helps** | Trust pipeline uses ADK `SequentialAgent` (extract → match) when `USE_ADK=true`; code review uses ADK `ParallelAgent` + coordinator |
 | **Demo fallbacks** | `DEMO_MODE` and quota-aware fallbacks keep demos working without API keys or when external sites block fetches |
 
 ## Limitations
@@ -324,6 +324,7 @@ Example response shape:
 - 5-agent code review with Google ADK + Gemini
 - Streaming review UI, PR diff upload, Cloud Run deploy path
 - Local mock demo pages for reliable judging (`/demo/chatgpt`, `/demo/google-overview`)
+- Concurrent citation fetching so blocked sources do not serialize the full trust check
 
 ### Next
 
@@ -335,7 +336,7 @@ Example response shape:
 ## Project Structure
 
 ```text
-├── adk_agents/checkeverything/   # Google ADK 5-agent graph
+├── adk_agents/checkeverything/   # Google ADK trust + code-review graphs
 ├── backend/                      # API, orchestrator, evaluation
 ├── extension/                    # Chrome extension
 ├── eval/                         # Labeled samples (code review + trust)

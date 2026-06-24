@@ -61,7 +61,7 @@ For **live Gemini** (optional segment): set `GEMINI_API_KEY` in `.env`, run `./s
 
 | Criterion | How CheckEverything addresses it |
 | --- | --- |
-| **Technical depth (35%)** | Multi-stage trust pipeline, source fetching, claim-to-excerpt matching, weighted scoring, ADK trust + code review graphs, 56+ unit tests, trust eval harness |
+| **Technical depth (35%)** | Multi-stage trust pipeline, concurrent source fetching, claim-to-excerpt matching, weighted scoring, ADK trust + code review graphs, 57+ unit tests, trust eval harness |
 | **Google technology (20%)** | Gemini structured output throughout; ADK trust + code review graphs; Vertex + Cloud Run; Chrome extension |
 | **Demo reliability (25%)** | Offline demo mode, mock pages, screenshot assets, graceful API fallbacks, `pipeline` field exposes demo vs live |
 | **Real-world applicability (10%)** | Actionable claim list with support labels; adjustable category weights; clear limitations (preliminary, not fact-checking) |

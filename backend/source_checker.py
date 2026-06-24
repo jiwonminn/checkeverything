@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from html import unescape
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
@@ -13,6 +14,7 @@ from backend.trust_models import CheckedSource, SourceCheckSummary, SourceQualit
 USER_AGENT = "CheckEverything/1.0 (trust-source-checker)"
 FETCH_TIMEOUT_SEC = 8
 MAX_SOURCES = 10
+MAX_SOURCE_FETCH_WORKERS = 4
 MAX_BODY_BYTES = 50_000
 MAX_PAGE_TEXT_CHARS = 8_000
 
@@ -222,7 +224,13 @@ def fetch_url_metadata(url: str) -> CheckedSource:
 
 
 def check_sources(urls: list[str]) -> list[CheckedSource]:
-    return [fetch_url_metadata(url) for url in urls[:MAX_SOURCES]]
+    limited_urls = urls[:MAX_SOURCES]
+    if not limited_urls:
+        return []
+
+    workers = min(MAX_SOURCE_FETCH_WORKERS, len(limited_urls))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        return list(executor.map(fetch_url_metadata, limited_urls))
 
 
 def is_primary_official_source(source: CheckedSource) -> bool:

@@ -100,28 +100,36 @@ def test_fetch_url_metadata_parses_title(mock_urlopen):
     assert source.domain == "example.com"
 
 
+def test_check_sources_empty_list():
+    assert check_sources([]) == []
+
+
 @patch("backend.source_checker.fetch_url_metadata")
 def test_check_sources_calls_fetch_for_each_url(mock_fetch):
-    mock_fetch.side_effect = [
-        CheckedSource(
-            url="https://a.com",
-            domain="a.com",
-            reachable=True,
-            status_code=200,
-            title="A",
-            source_quality="medium",
-            notes="",
-        ),
-        CheckedSource(
-            url="https://b.com",
-            domain="b.com",
-            reachable=False,
-            status_code=404,
-            title=None,
-            source_quality="low",
-            notes="Broken",
-        ),
-    ]
+    def fake_fetch(url):
+        return {
+            "https://a.com": CheckedSource(
+                url="https://a.com",
+                domain="a.com",
+                reachable=True,
+                status_code=200,
+                title="A",
+                source_quality="medium",
+                notes="",
+            ),
+            "https://b.com": CheckedSource(
+                url="https://b.com",
+                domain="b.com",
+                reachable=False,
+                status_code=404,
+                title=None,
+                source_quality="low",
+                notes="Broken",
+            ),
+        }[url]
+
+    mock_fetch.side_effect = fake_fetch
     sources = check_sources(["https://a.com", "https://b.com"])
     assert len(sources) == 2
+    assert [source.url for source in sources] == ["https://a.com", "https://b.com"]
     assert sources[1].reachable is False

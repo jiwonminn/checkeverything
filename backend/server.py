@@ -1,4 +1,4 @@
-"""FastAPI server for checkeverything code review."""
+"""FastAPI server for CheckEverything trust analysis and code review."""
 
 import asyncio
 import json
@@ -26,7 +26,7 @@ DEMO_DIR = STATIC_DIR / "demo"
 
 app = FastAPI(
     title="checkeverything",
-    description="Multi-agent code review — Google ADK + Gemini + 5 specialist agents",
+    description="AI trust scoring and multi-agent code review — Google ADK + Gemini",
     version="2.0.0",
 )
 
