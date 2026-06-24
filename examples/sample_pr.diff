@@ -1,0 +1,21 @@
+# Sample PR diff for checkeverything demo
+
+diff --git a/auth.py b/auth.py
+index 1234567..abcdefg 100644
+--- a/auth.py
++++ b/auth.py
+@@ -1,8 +1,12 @@
+ import sqlite3
+ 
++SECRET_KEY = "hardcoded-secret"
++
+ def login(username, password):
+     conn = sqlite3.connect("users.db")
+     cursor = conn.cursor()
+-    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
++    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
++    cursor.execute(query)
+     return cursor.fetchone()
++
++def save_config(data):
++    exec(data)

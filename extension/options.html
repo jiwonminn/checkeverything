@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>checkeverything Options</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 16px; max-width: 400px; }
+    label { display: block; margin-bottom: 12px; font-size: 14px; }
+    input { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+    button { padding: 8px 16px; background: #4285f4; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+    #status { margin-top: 12px; font-size: 13px; color: #34a853; }
+  </style>
+</head>
+<body>
+  <h2>checkeverything</h2>
+  <p>Configure your local or Cloud Run API endpoint.</p>
+  <label>
+    API URL
+    <input id="apiUrl" type="url" placeholder="http://localhost:8080" />
+  </label>
+  <button id="save">Save</button>
+  <div id="status"></div>
+  <script src="options.js"></script>
+</body>
+</html>

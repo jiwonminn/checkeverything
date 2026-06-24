@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>checkeverything — Multi-Agent Code Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-icon">🛡️</span>
+        <div>
+          <h1>checkeverything</h1>
+          <p class="tagline">5-agent code review · Google ADK + Gemini</p>
+        </div>
+      </div>
+      <div class="agents-pill">
+        <span>Security</span>
+        <span>Correctness</span>
+        <span>Readability</span>
+        <span>Performance</span>
+        <span>Tests</span>
+        <span class="coordinator">→ Coordinator</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="input-panel">
+      <div class="panel-header">
+        <h2>Submission</h2>
+        <div class="submission-tabs">
+          <button type="button" class="sub-tab active" data-mode="code">Code</button>
+          <button type="button" class="sub-tab" data-mode="diff">PR Diff</button>
+        </div>
+      </div>
+
+      <div id="mode-code" class="mode-panel active">
+        <div class="panel-header">
+          <div class="controls">
+            <label>
+              Language
+              <select id="language">
+                <option value="python">Python</option>
+                <option value="javascript">JavaScript</option>
+                <option value="typescript">TypeScript</option>
+                <option value="java">Java</option>
+                <option value="go">Go</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <button type="button" id="load-sample" class="btn-secondary">Load sample</button>
+          </div>
+        </div>
+        <textarea id="code" placeholder="Paste a function, file, or snippet here..." spellcheck="false"></textarea>
+      </div>
+
+      <div id="mode-diff" class="mode-panel">
+        <div class="diff-actions">
+          <label class="btn-secondary file-btn">
+            Upload .diff
+            <input type="file" id="diff-file" accept=".diff,.patch,.txt" hidden />
+          </label>
+          <button type="button" id="load-diff-sample" class="btn-secondary">Load sample diff</button>
+        </div>
+        <textarea id="diff" placeholder="Paste a unified diff (git diff output) here..." spellcheck="false"></textarea>
+        <p id="diff-summary" class="diff-summary hidden"></p>
+      </div>
+
+      <div class="meta-row">
+        <label class="context-label">
+          Context <span class="optional">(optional)</span>
+          <input id="context" type="text" placeholder="e.g. PR #42 — auth module refactor" />
+        </label>
+        <span id="char-count" class="char-count">0 chars</span>
+      </div>
+      <button type="button" id="submit" class="btn-primary">
+        <span class="btn-text">Run 5-Agent Review</span>
+        <span class="btn-spinner hidden" aria-hidden="true"></span>
+      </button>
+      <div id="progress" class="progress hidden" aria-live="polite"></div>
+      <p id="error" class="error hidden" role="alert"></p>
+    </section>
+
+    <section class="output-panel hidden" id="results">
+      <div class="meta-bar hidden" id="meta-bar">
+        <span id="pipeline-badge" class="pipeline-badge"></span>
+        <span id="duration-badge" class="duration-badge"></span>
+      </div>
+
+      <div class="score-card" id="score-card">
+        <div class="score-ring">
+          <span id="overall-score">—</span>
+          <small>/ 100</small>
+        </div>
+        <div class="verdict-block">
+          <span id="verdict-badge" class="verdict-badge">—</span>
+          <p id="executive-summary"></p>
+        </div>
+      </div>
+
+      <div class="agent-grid" id="agent-grid"></div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="findings">Findings</button>
+        <button class="tab" data-tab="markdown">Report</button>
+        <button class="tab" data-tab="actions">Action Items</button>
+        <button class="tab" data-tab="json">JSON</button>
+      </div>
+      <div class="tab-panels">
+        <div id="tab-findings" class="tab-panel active">
+          <div id="findings-list" class="findings-list"></div>
+        </div>
+        <div id="tab-markdown" class="tab-panel">
+          <article id="markdown-report" class="markdown-body"></article>
+        </div>
+        <div id="tab-actions" class="tab-panel">
+          <ul id="action-list" class="action-list"></ul>
+        </div>
+        <div id="tab-json" class="tab-panel">
+          <pre id="json-output"><code></code></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>GDG York · Google ADK · Gemini · Vertex AI · Chrome Extension in <code>extension/</code></p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

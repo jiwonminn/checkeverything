@@ -1,0 +1,19 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/checkeverything', '.']
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', 'gcr.io/$PROJECT_ID/checkeverything']
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - checkeverything
+      - --image=gcr.io/$PROJECT_ID/checkeverything
+      - --region=us-central1
+      - --platform=managed
+      - --allow-unauthenticated
+      - --set-env-vars=USE_ADK=true,GEMINI_MODEL=gemini-2.5-flash-lite
+      - --set-secrets=GEMINI_API_KEY=GEMINI_API_KEY:latest
+images:
+  - gcr.io/$PROJECT_ID/checkeverything

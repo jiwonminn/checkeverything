@@ -1,0 +1,24 @@
+[
+  {
+    "id": "vulnerable_auth",
+    "file": "examples/vulnerable_auth.py",
+    "language": "python",
+    "context": "Auth helper module",
+    "expected": [
+      {"agent": "Security Agent", "keywords": ["sql", "injection", "exec"]},
+      {"agent": "Correctness Agent", "keywords": ["off-by-one", "index", "negative", "max"]},
+      {"agent": "Test Coverage Agent", "keywords": ["test", "coverage", "unit"]}
+    ]
+  },
+  {
+    "id": "vulnerable_api_js",
+    "file": "examples/vulnerable_api.js",
+    "language": "javascript",
+    "context": "Express API handlers",
+    "expected": [
+      {"agent": "Security Agent", "keywords": ["sql", "injection", "ssrf", "eval", "secret"]},
+      {"agent": "Correctness Agent", "keywords": ["off-by-one", "average", "length"]},
+      {"agent": "Test Coverage Agent", "keywords": ["test", "coverage", "unit"]}
+    ]
+  }
+]

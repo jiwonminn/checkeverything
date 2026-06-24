@@ -1,0 +1,89 @@
+.checkeverything-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 8px 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a73e8;
+  background: #e8f0fe;
+  border: 1px solid #4285f4;
+  border-radius: 999px;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.checkeverything-badge:hover {
+  background: #d2e3fc;
+}
+
+.checkeverything-badge:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.checkeverything-panel {
+  margin: 8px 0 16px;
+  padding: 12px 14px;
+  background: #f8f9fa;
+  border: 1px solid #dadce0;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #202124;
+  max-width: 640px;
+}
+
+.checkeverything-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.checkeverything-score {
+  margin-left: auto;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a73e8;
+}
+
+.checkeverything-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #5f6368;
+}
+
+.checkeverything-verdict {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #fef7e0;
+  color: #ea8600;
+  margin-bottom: 8px;
+}
+
+.checkeverything-summary {
+  margin: 0 0 8px;
+  color: #3c4043;
+}
+
+.checkeverything-agents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.checkeverything-agents span {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: #e8eaed;
+  border-radius: 999px;
+}

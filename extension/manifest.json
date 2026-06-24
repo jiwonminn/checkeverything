@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "checkeverything",
+  "version": "1.0.0",
+  "description": "Score AI-generated code reviews with checkeverything multi-agent analysis (Google Gemini).",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "checkeverything"
+  },
+  "options_page": "options.html"
+}
