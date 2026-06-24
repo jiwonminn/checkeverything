@@ -34,6 +34,10 @@ def _demo_mode_enabled() -> bool:
     return os.getenv("DEMO_MODE", "").lower() in ("1", "true", "yes")
 
 
+def _use_adk() -> bool:
+    return os.getenv("USE_ADK", "true").lower() in ("1", "true", "yes")
+
+
 def _validate_request(request: AnalyzeRequest) -> None:
     text = request.text.strip()
     if not text:
@@ -229,6 +233,15 @@ def analyze_response(request: AnalyzeRequest) -> AnalyzeResponse:
         )
 
     sources = check_sources(urls)
+
+    if _use_adk():
+        try:
+            from backend.adk_trust_runner import analyze_with_adk
+
+            return analyze_with_adk(request, sources).model_copy(update={"pipeline": "adk"})
+        except Exception as exc:
+            if not is_recoverable_api_error(exc):
+                raise
 
     try:
         return _analyze_with_gemini(request, sources).model_copy(update={"pipeline": "gemini"})

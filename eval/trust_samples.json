@@ -1,0 +1,34 @@
+[
+  {
+    "id": "vitamin_d_chatgpt",
+    "file": "examples/vitamin_d_answer.txt",
+    "source": "chatgpt",
+    "urls": [
+      "https://www.nih.gov/health-information/vitamin-d",
+      "https://www.cdc.gov/vitamin-d/index.html",
+      "https://demo.invalid/vitamin-study"
+    ],
+    "expected_claims": [
+      {
+        "text_contains": "absorb calcium",
+        "support_label": "supported"
+      },
+      {
+        "text_contains": "40%",
+        "support_label": "weakly_supported"
+      },
+      {
+        "text_contains": "prevents all chronic",
+        "support_label": "not_supported"
+      },
+      {
+        "text_contains": "cures seasonal illness",
+        "support_label": "source_unavailable"
+      }
+    ],
+    "expected_categories_min": {
+      "claim_support": 60,
+      "source_quality": 70
+    }
+  }
+]

@@ -153,6 +153,27 @@ def _merge_match(
     )
 
 
+def apply_matching_draft(
+    claims: list[ClaimDraft],
+    matching: ClaimMatchingDraft,
+    sources: list[CheckedSource],
+) -> list[ClaimAnalysis]:
+    """Apply a claim-matching draft to extracted claims (ADK or direct Gemini)."""
+    trimmed_claims = claims[:MAX_CLAIMS_TO_MATCH]
+    if not trimmed_claims:
+        return []
+
+    matches_by_text = {item.claim_text.strip(): item for item in matching.matches}
+    enriched: list[ClaimAnalysis] = []
+    for claim in trimmed_claims:
+        match_item = matches_by_text.get(claim.text.strip())
+        if match_item is None:
+            enriched.append(_fallback_match(claim, sources))
+            continue
+        enriched.append(_merge_match(claim, match_item, sources))
+    return enriched
+
+
 def match_claims_to_sources(
     claims: list[ClaimDraft],
     sources: list[CheckedSource],
@@ -188,16 +209,7 @@ def match_claims_to_sources(
         ),
     )
     draft = ClaimMatchingDraft.model_validate_json(response.text)
-    matches_by_text = {item.claim_text.strip(): item for item in draft.matches}
-
-    enriched: list[ClaimAnalysis] = []
-    for claim in trimmed_claims:
-        match_item = matches_by_text.get(claim.text.strip())
-        if match_item is None:
-            enriched.append(_fallback_match(claim, sources))
-            continue
-        enriched.append(_merge_match(claim, match_item, sources))
-    return enriched
+    return apply_matching_draft(trimmed_claims, draft, sources)
 
 
 def build_support_summary(claims: list[ClaimAnalysis]) -> str:

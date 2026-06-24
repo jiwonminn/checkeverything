@@ -86,6 +86,35 @@ def test_analyze_response_in_demo_mode(monkeypatch):
     assert result.overall_score >= 0
 
 
+def test_analyze_response_uses_adk_when_enabled(monkeypatch):
+    monkeypatch.delenv("DEMO_MODE", raising=False)
+    monkeypatch.setenv("USE_ADK", "true")
+
+    from backend import analyze as analyze_module
+    from backend.trust_models import AnalyzeResponse, CategoryScore
+
+    def fake_adk(request, sources):
+        return AnalyzeResponse(
+            overall_score=80,
+            categories={
+                "claim_support": CategoryScore(score=80, summary="ok"),
+                "source_quality": CategoryScore(score=80, summary="ok"),
+                "citation_accuracy": CategoryScore(score=80, summary="ok"),
+                "freshness": CategoryScore(score=80, summary="ok"),
+                "bias_context": CategoryScore(score=80, summary="ok"),
+            },
+        )
+
+    monkeypatch.setattr("backend.adk_trust_runner.analyze_with_adk", fake_adk)
+    monkeypatch.setattr(analyze_module, "check_sources", lambda urls: [])
+
+    result = analyze_module.analyze_response(
+        AnalyzeRequest(text="Vitamin D supports bone health according to several studies.")
+    )
+    assert result.pipeline == "adk"
+    assert result.overall_score == 80
+
+
 def test_analyze_with_gemini_enriches_claims_with_source_matches(monkeypatch):
     from backend import analyze
 

@@ -415,7 +415,7 @@ function renderTrustPanel(data) {
     ${renderSourceSummary(data.source_summary)}
     ${renderSourcesList(data.sources)}
     ${claims.length ? `<div class="checkeverything-claims-section"><div class="checkeverything-claims-heading">Claims</div>${renderClaimSummary(claims)}<ul class="checkeverything-claims">${claimRows}</ul></div>` : ""}
-    <small>Analysis type: ${escapeHtml(data.analysis_type || "preliminary")}${data.pipeline && data.pipeline !== "gemini" ? ` · ${escapeHtml(data.pipeline)} data` : ""}</small>
+    <small>Analysis type: ${escapeHtml(data.analysis_type || "preliminary")}${data.pipeline === "demo" || data.pipeline === "demo_fallback" ? ` · ${escapeHtml(data.pipeline)} data` : ""}</small>
   `;
 }
 

@@ -97,6 +97,11 @@ flowchart TB
     Score[Weighted Trust Score]
   end
 
+  subgraph adk_trust [ADK Trust Graph when USE_ADK=true]
+    Extract[trust_extractor_agent]
+    Matcher[trust_matcher_agent]
+  end
+
   GPT --> CS
   GAI --> CS
   CS --> Badge
@@ -104,6 +109,7 @@ flowchart TB
   CS -->|text + urls + weights| Analyze
   CS -->|code| Review
   Analyze --> Claims --> Sources --> Match --> Score
+  Analyze -.->|USE_ADK=true| Extract --> Matcher --> Score
   Score --> Panel
 ```
 
@@ -113,9 +119,9 @@ flowchart TB
 | --- | --- |
 | **Click-to-analyze badge** | No background API calls on every AI page; user controls when to run analysis |
 | **Server-side URL fetch** | Citations are checked against real page excerpts, not just link text in the AI answer |
-| **Two Gemini calls (trust)** | Call 1: extract claims + category scores. Call 2: match claims to source excerpts. Structured JSON per stage is more reliable than one monolithic prompt |
+| **Two Gemini calls (trust)** | Call 1: extract claims + category scores. Call 2: match claims to source excerpts. With `USE_ADK=true`, both steps run as ADK `SequentialAgent` (`trust_extractor_agent` → `trust_matcher_agent`) |
 | **Heuristic score blending** | Source quality and citation accuracy combine Gemini judgment with reachability and support-label signals |
-| **ADK for code review only** | Trust pipeline is sequential fetch → analyze → match; code review fits ADK's `ParallelAgent` + coordinator pattern |
+| **ADK for code review only** | Trust pipeline uses ADK `SequentialAgent` (extract → match) when `USE_ADK=true`; code review uses ADK `ParallelAgent` + coordinator |
 | **Demo fallbacks** | `DEMO_MODE` and quota-aware fallbacks keep demos working without API keys or when external sites block fetches |
 
 ## Limitations
@@ -144,7 +150,7 @@ The current version uses a multi-agent review system to analyze code. Five speci
 | Tech | Usage | Why |
 | --- | --- | --- |
 | **Gemini API** | Structured JSON for trust analysis, claim matching, and all code-review agents | `response_schema` gives reliable scores and findings; fallback model chain handles 429s |
-| **Google ADK** | `ParallelAgent` for 5 specialists → `SequentialAgent` coordinator (code review) | Native multi-agent orchestration instead of hand-rolled parallel fan-out |
+| **Google ADK** | `SequentialAgent` trust graph (extract → match); `ParallelAgent` + coordinator for code review | Native multi-agent orchestration for both primary trust and secondary review paths |
 | **Vertex AI** | Optional `GOOGLE_GENAI_USE_VERTEXAI` deployment | Same SDK for GCP projects; no API key in the container |
 | **Cloud Run** | `./scripts/deploy-cloudrun.sh` + `Dockerfile` | Single HTTPS endpoint for extension + web UI |
 | **Chrome Extension APIs** | MV3 content scripts, `chrome.storage.sync`, service worker proxy | Overlay on ChatGPT/Google without CORS issues on third-party pages |
@@ -198,8 +204,10 @@ adk web adk_agents
 ### Evaluation Harness
 
 ```bash
-./scripts/eval.sh          # offline demo mode
-./scripts/eval.sh --live   # live Gemini API
+./scripts/eval.sh              # code review + trust eval (offline demo mode)
+./scripts/eval.sh --code       # code review only
+./scripts/eval.sh --trust      # trust claim-matching eval only
+./scripts/eval.sh --live       # live Gemini API for both harnesses
 ```
 
 ### Deploy to Cloud Run
@@ -310,6 +318,8 @@ Example response shape:
 
 - Trust Score Chrome extension (ChatGPT + Google AI Overview)
 - Claim extraction, source fetch, claim-to-source matching (`/api/analyze`)
+- **Google ADK trust pipeline** (`trust_extractor_agent` → `trust_matcher_agent`) when `USE_ADK=true`
+- **Trust eval harness** (`eval/trust_samples.json`, `./scripts/eval.sh --trust`)
 - Configurable trust score weights (extension + web UI)
 - 5-agent code review with Google ADK + Gemini
 - Streaming review UI, PR diff upload, Cloud Run deploy path
@@ -317,8 +327,7 @@ Example response shape:
 
 ### Next
 
-- Trust eval harness with labeled claim-support samples
-- ADK graph for trust pipeline (unified Google agent story)
+- Expand trust eval samples beyond vitamin D scenario
 - Gemini, Claude, Perplexity adapters
 - Analysis history dashboard
 - Stronger source fetching (paywalls, topic-specific authority lists)
@@ -329,7 +338,7 @@ Example response shape:
 ├── adk_agents/checkeverything/   # Google ADK 5-agent graph
 ├── backend/                      # API, orchestrator, evaluation
 ├── extension/                    # Chrome extension
-├── eval/                         # Labeled samples for recall metrics
+├── eval/                         # Labeled samples (code review + trust)
 ├── frontend/                     # Streaming web UI + diff upload
 ├── examples/                     # vulnerable_auth.py, sample_pr.diff
 ├── Dockerfile                    # Cloud Run container

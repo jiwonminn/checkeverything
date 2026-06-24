@@ -97,7 +97,7 @@ class SourceCheckSummary(BaseModel):
     issues: list[str] = Field(default_factory=list)
 
 
-TrustPipelineType = Literal["demo", "gemini", "demo_fallback"]
+TrustPipelineType = Literal["demo", "gemini", "adk", "demo_fallback"]
 
 
 class AnalyzeResponse(BaseModel):
