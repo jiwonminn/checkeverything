@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "checkeverything",
+  "name": "CheckEverything",
   "version": "1.0.0",
-  "description": "Score AI-generated code reviews with checkeverything multi-agent analysis (Google Gemini).",
+  "description": "AI response trust checker — scores code review reliability on ChatGPT with multi-agent Gemini analysis. Broader credibility scoring planned.",
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "https://chatgpt.com/*",
@@ -23,7 +23,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "checkeverything"
+    "default_title": "CheckEverything — AI Trust Score"
   },
   "options_page": "options.html"
 }

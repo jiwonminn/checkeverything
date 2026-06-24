@@ -11,9 +11,11 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
 
+from backend.analyze import analyze_response
 from backend.diff_parser import infer_language_from_diff, parse_unified_diff
 from backend.gemini_client import get_model, use_vertex_ai
 from backend.orchestrator import review_code, review_code_stream
+from backend.trust_models import AnalyzeRequest
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -124,6 +126,23 @@ async def create_review(request: ReviewRequest):
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Review failed: {exc}") from exc
+
+
+@app.post("/api/analyze")
+async def analyze_ai_response(request: AnalyzeRequest):
+    """Analyze an AI response for trust and credibility (planned)."""
+    try:
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(None, lambda: analyze_response(request))
+        return response.model_dump()
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {exc}") from exc
 
 
 @app.post("/api/review/stream")
