@@ -30,8 +30,8 @@ Also includes a multi-agent **code review** mode for ChatGPT code responses and 
 Optional demo GIF: `docs/demo/trust-score-demo.gif`
 
 ```bash
-./scripts/run.sh
-./scripts/check-demo-assets.sh   # verify screenshots exist
+./scripts/demo-screenshots.sh   # local mock pages — best for screenshots
+./scripts/check-demo-assets.sh  # verify screenshots exist
 ```
 
 ## Problem

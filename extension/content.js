@@ -132,6 +132,12 @@ function renderClaimSummary(claims) {
 }
 
 function getPlatform() {
+  if (location.pathname.includes("/demo/google")) {
+    return "google_ai_overview";
+  }
+  if (location.pathname.includes("/demo/chatgpt")) {
+    return "chatgpt";
+  }
   if (location.hostname.includes("google.") && location.pathname.startsWith("/search")) {
     return "google_ai_overview";
   }
@@ -524,12 +530,23 @@ function attachBadge(targetEl, detected) {
 }
 
 function scanChatGPTMessages() {
+  if (location.pathname.includes("/demo/chatgpt")) {
+    document
+      .querySelectorAll('[data-message-author-role="assistant"]')
+      .forEach((messageEl) => attachBadge(messageEl, detectChatGPTMode(messageEl)));
+    return;
+  }
   document
     .querySelectorAll('[data-message-author-role="assistant"]')
     .forEach((messageEl) => attachBadge(messageEl, detectChatGPTMode(messageEl)));
 }
 
 function scanGoogleAiOverviews() {
+  if (location.pathname.includes("/demo/google")) {
+    const block = document.querySelector(".ai-overview-block");
+    if (block) attachBadge(block, detectGoogleOverviewMode(block));
+    return;
+  }
   findGoogleAiOverviewContainers().forEach((containerEl) => {
     attachBadge(containerEl, detectGoogleOverviewMode(containerEl));
   });

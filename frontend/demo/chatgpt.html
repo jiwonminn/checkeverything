@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ChatGPT — Demo (CheckEverything)</title>
+  <link rel="stylesheet" href="/static/demo/demo.css" />
+</head>
+<body class="demo-chatgpt">
+  <div class="demo-banner">
+    Screenshot demo · Mock ChatGPT · Click <strong>Trust Score</strong> on the answer below
+    <a href="/demo">← Back to hub</a>
+  </div>
+
+  <main class="chatgpt-shell">
+    <div class="chatgpt-thread">
+      <div class="chatgpt-user">
+        <div class="bubble user-bubble">
+          What are the main health benefits of vitamin D? Include sources.
+        </div>
+      </div>
+
+      <div class="chatgpt-assistant" data-message-author-role="assistant">
+        <div class="bubble assistant-bubble">
+          <p>Vitamin D is an essential nutrient with several well-studied roles in health:</p>
+          <p><strong>Bone health</strong> — Vitamin D helps the body absorb calcium and supports bone health. This is one of the most established benefits.</p>
+          <p><strong>Immune function</strong> — Some research suggests vitamin D supplementation may reduce cold risk by 40% for most adults, though results vary by population.</p>
+          <p><strong>Chronic disease</strong> — Vitamin D prevents all chronic disease when taken daily. (This is a stronger claim than most clinical sources support.)</p>
+          <p><strong>Sources</strong></p>
+          <ul>
+            <li><a href="https://www.nih.gov/health-information/vitamin-d">NIH — Vitamin D</a></li>
+            <li><a href="https://www.cdc.gov/vitamin-d/index.html">CDC — Vitamin D</a></li>
+            <li><a href="https://demo.invalid/vitamin-study">Broken demo citation</a></li>
+          </ul>
+          <p>A cited study confirms vitamin D cures seasonal illness in every population.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (new URLSearchParams(location.search).get("autopen") === "1") {
+      window.addEventListener("load", () => {
+        setTimeout(() => {
+          const badge = document.querySelector(".checkeverything-badge");
+          if (badge) badge.click();
+        }, 1200);
+      });
+    }
+  </script>
+</body>
+</html>

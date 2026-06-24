@@ -18,6 +18,7 @@ from backend.orchestrator import review_code, review_code_stream
 from backend.trust_models import AnalyzeRequest
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "frontend"
+DEMO_DIR = STATIC_DIR / "demo"
 
 app = FastAPI(
     title="checkeverything",
@@ -59,6 +60,30 @@ class ReviewRequest(BaseModel):
 
 class ParseDiffRequest(BaseModel):
     diff: str = Field(min_length=1)
+
+
+@app.get("/demo")
+async def demo_hub():
+    path = DEMO_DIR / "index.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Demo hub not found")
+    return FileResponse(path)
+
+
+@app.get("/demo/chatgpt")
+async def demo_chatgpt():
+    path = DEMO_DIR / "chatgpt.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Demo page not found")
+    return FileResponse(path)
+
+
+@app.get("/demo/google-overview")
+async def demo_google_overview():
+    path = DEMO_DIR / "google-overview.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Demo page not found")
+    return FileResponse(path)
 
 
 @app.get("/")

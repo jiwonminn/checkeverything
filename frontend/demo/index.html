@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CheckEverything — Screenshot Demo Hub</title>
+  <link rel="stylesheet" href="/static/demo/demo.css" />
+</head>
+<body class="demo-hub">
+  <header class="demo-header">
+    <h1>CheckEverything Screenshot Demo</h1>
+    <p>Local testing pages for capturing README demo assets. Uses <strong>DEMO_MODE</strong> — no live API calls required.</p>
+  </header>
+
+  <section class="demo-card">
+    <h2>Before you start</h2>
+    <ol>
+      <li>Run <code>./scripts/demo-screenshots.sh</code></li>
+      <li>Reload the extension in <code>chrome://extensions</code></li>
+      <li>Set extension API URL to <code id="apiUrl">http://localhost:8080</code></li>
+    </ol>
+  </section>
+
+  <section class="demo-grid">
+    <a class="demo-tile" href="/demo/chatgpt">
+      <h3>ChatGPT mock</h3>
+      <p>Screenshot: <code>chatgpt-badge.png</code></p>
+      <span>Trust Score on a vitamin D answer with citations</span>
+    </a>
+    <a class="demo-tile" href="/demo/google-overview">
+      <h3>Google AI Overview mock</h3>
+      <p>Screenshot: <code>google-ai-overview-badge.png</code></p>
+      <span>Trust Score on a search-style AI Overview block</span>
+    </a>
+    <a class="demo-tile" href="/demo/chatgpt?autopen=1">
+      <h3>Claim panel (auto-open)</h3>
+      <p>Screenshot: <code>claim-panel-statuses.png</code></p>
+      <span>Opens the trust panel automatically after analysis</span>
+    </a>
+    <a class="demo-tile" href="chrome://extensions" onclick="alert('Open CheckEverything → Details → Extension options'); return false;">
+      <h3>Extension options</h3>
+      <p>Screenshot: <code>options-weights.png</code></p>
+      <span>Configure trust score weights</span>
+    </a>
+  </section>
+
+  <section class="demo-card">
+    <h2>After screenshots</h2>
+    <pre>./scripts/check-demo-assets.sh
+git add docs/demo/*.png
+git commit -m "docs: add demo screenshots"
+git push</pre>
+  </section>
+
+  <script>
+    document.getElementById("apiUrl").textContent = location.origin;
+  </script>
+</body>
+</html>

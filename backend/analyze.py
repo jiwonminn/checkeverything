@@ -7,6 +7,7 @@ from google.genai import types
 
 from backend.confidence import apply_confidence
 from backend.demo_trust import demo_trust_report
+from backend.demo_trust_screenshot import demo_trust_screenshot_report
 from backend.gemini_client import generate_with_fallback, get_client
 from backend.source_checker import (
     build_source_summary,
@@ -217,6 +218,16 @@ def _analyze_with_gemini(request: AnalyzeRequest, sources: list[CheckedSource]) 
     )
 
 
+def _is_screenshot_demo_request(request: AnalyzeRequest) -> bool:
+    text = request.text.lower()
+    return (
+        "vitamin d" in text
+        or "vitamin" in text
+        or request.source in ("google_ai_overview", "chatgpt")
+        and len(request.urls) >= 1
+    )
+
+
 def analyze_response(request: AnalyzeRequest) -> AnalyzeResponse:
     """Run preliminary trust analysis on an AI-generated response."""
     _validate_request(request)
@@ -224,6 +235,8 @@ def analyze_response(request: AnalyzeRequest) -> AnalyzeResponse:
     active_weights = normalize_weights(request.weights)
 
     if _demo_mode_enabled():
+        if _is_screenshot_demo_request(request):
+            return demo_trust_screenshot_report(request.urls, weights=active_weights)
         return demo_trust_report(request.text, urls, weights=active_weights)
 
     sources = check_sources(urls)
@@ -232,5 +245,7 @@ def analyze_response(request: AnalyzeRequest) -> AnalyzeResponse:
         return _analyze_with_gemini(request, sources)
     except Exception as exc:
         if _is_recoverable_api_error(exc):
+            if _is_screenshot_demo_request(request):
+                return demo_trust_screenshot_report(urls, weights=active_weights)
             return demo_trust_report(request.text, urls, weights=active_weights)
         raise
