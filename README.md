@@ -1,6 +1,6 @@
 # checkeverything
 
-**5-agent automated code review for GDG on Campus York University · Google Toronto HQ, July 3, 2026**
+**5-agent automated code review — Google ADK + Gemini**
 
 checkeverything automates first-pass code review using five Google Gemini specialists and a coordinating agent — built on **Google ADK**, **Gemini API**, and optional **Vertex AI**.
 
@@ -94,18 +94,9 @@ GCP_PROJECT_ID=your-project ./scripts/deploy-cloudrun.sh
 └── scripts/                 # setup, run, test, eval, deploy
 ```
 
-## Demo Video Script (60s)
+## About
 
-1. `./scripts/run.sh` → web UI
-2. Load sample code → run review → **5 agents appear live**
-3. **Findings tab** → SQL injection (Security), off-by-one (Correctness)
-4. Switch to **PR Diff** tab → load sample diff → run again
-5. Show **Chrome extension** on ChatGPT code review
-6. Mention: Google ADK + Gemini + Cloud Run ready
-
-## Team
-
-GDG on Campus York University · AI Case Competition
+Solo project by **Jiwon Min** (York University). Built to explore multi-agent code review with Google ADK — five specialists in parallel, one coordinator, deployable to Cloud Run.
 
 ## License
 
