@@ -7,6 +7,14 @@ from pydantic import BaseModel, Field
 
 SourceQualityLevel = Literal["high", "medium-high", "medium", "low-medium", "low"]
 
+SupportLabel = Literal[
+    "supported",
+    "weakly_supported",
+    "not_supported",
+    "unclear",
+    "source_unavailable",
+]
+
 ClaimStatus = Literal[
     "strongly_supported",
     "weakly_supported",
@@ -48,6 +56,9 @@ class ClaimAnalysis(BaseModel):
     status: ClaimStatus
     citations: list[str] = Field(default_factory=list)
     note: str = ""
+    matched_source: str | None = None
+    support_label: SupportLabel | None = None
+    evidence_note: str = ""
 
 
 class CheckedSource(BaseModel):
@@ -56,6 +67,8 @@ class CheckedSource(BaseModel):
     reachable: bool
     status_code: int | None = None
     title: str | None = None
+    meta_description: str | None = None
+    page_text: str | None = None
     source_quality: SourceQualityLevel
     notes: str = ""
 
@@ -101,3 +114,14 @@ class TrustAnalysisDraft(BaseModel):
     bias_context: CategoryAssessment
     headline: str = ""
     support_summary: str = ""
+
+
+class ClaimSourceMatchItem(BaseModel):
+    claim_text: str
+    matched_source: str | None = None
+    support_label: SupportLabel
+    evidence_note: str = ""
+
+
+class ClaimMatchingDraft(BaseModel):
+    matches: list[ClaimSourceMatchItem] = Field(default_factory=list)

@@ -16,9 +16,9 @@ const MODE_COPY = {
     panelTitle: "AI Response Trust Breakdown",
     panelSubtitle: "Preliminary Trust Analysis",
     disclaimer:
-      "Preliminary trust analysis with cited source checks (reachability and domain type). Full content verification is not included yet.",
+      "Preliminary trust analysis with claim-to-source matching against fetched source excerpts.",
     roadmap:
-      "Sources are fetched for title, domain, and reachability. Deeper claim-to-source content matching is planned.",
+      "Some sites block extraction or require JavaScript. Unavailable sources are labeled honestly.",
   },
 };
 
@@ -30,13 +30,22 @@ const CATEGORY_LABELS = {
   bias_context: "Bias / Missing Context",
 };
 
-const CLAIM_STATUS_LABELS = {
-  strongly_supported: "Strongly supported",
+const SUPPORT_LABEL_LABELS = {
+  supported: "Supported",
   weakly_supported: "Weakly supported",
+  not_supported: "Not supported",
   unclear: "Unclear",
-  outdated: "May be outdated",
-  unsupported: "Weakly supported",
+  source_unavailable: "Source unavailable",
 };
+
+function sourceDomain(url) {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
 
 function escapeHtml(str) {
   return String(str)
@@ -173,12 +182,19 @@ function renderTrustPanel(data) {
 
   const claimRows = claims
     .map((claim) => {
-      const status = CLAIM_STATUS_LABELS[claim.status] || claim.status;
+      const status =
+        SUPPORT_LABEL_LABELS[claim.support_label] ||
+        SUPPORT_LABEL_LABELS[claim.status] ||
+        claim.status;
+      const matchedDomain = sourceDomain(claim.matched_source);
+      const note = claim.evidence_note || claim.note;
       return `
-        <li class="checkeverything-claim checkeverything-claim-${claim.status}">
+        <li class="checkeverything-claim checkeverything-claim-${claim.support_label || claim.status}">
+          <div class="checkeverything-claim-label">Claim</div>
           <div class="checkeverything-claim-text">${escapeHtml(claim.text)}</div>
-          <div class="checkeverything-claim-meta">${escapeHtml(status)}</div>
-          ${claim.note ? `<div class="checkeverything-claim-note">${escapeHtml(claim.note)}</div>` : ""}
+          <div class="checkeverything-claim-meta"><strong>Status:</strong> ${escapeHtml(status)}</div>
+          ${matchedDomain ? `<div class="checkeverything-claim-source"><strong>Source:</strong> ${escapeHtml(matchedDomain)}</div>` : ""}
+          ${note ? `<div class="checkeverything-claim-note"><strong>Note:</strong> ${escapeHtml(note)}</div>` : ""}
         </li>
       `;
     })

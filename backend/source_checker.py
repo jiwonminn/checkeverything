@@ -14,9 +14,22 @@ USER_AGENT = "CheckEverything/1.0 (trust-source-checker)"
 FETCH_TIMEOUT_SEC = 8
 MAX_SOURCES = 10
 MAX_BODY_BYTES = 50_000
+MAX_PAGE_TEXT_CHARS = 8_000
 
 URL_PATTERN = re.compile(r"https?://[^\s<>\"')\]]+", re.IGNORECASE)
 TITLE_PATTERN = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+META_DESC_PATTERN = re.compile(
+    r'<meta[^>]+name=["\']description["\'][^>]+content=["\'](.*?)["\']',
+    re.IGNORECASE | re.DOTALL,
+)
+META_DESC_ALT_PATTERN = re.compile(
+    r'<meta[^>]+content=["\'](.*?)["\'][^>]+name=["\']description["\']',
+    re.IGNORECASE | re.DOTALL,
+)
+SCRIPT_STYLE_PATTERN = re.compile(r"<(script|style|noscript)[^>]*>.*?</\1>", re.DOTALL | re.IGNORECASE)
+PARAGRAPH_PATTERN = re.compile(r"<p[^>]*>(.*?)</p>", re.DOTALL | re.IGNORECASE)
+TAG_PATTERN = re.compile(r"<[^>]+>")
+WHITESPACE_PATTERN = re.compile(r"\s+")
 
 HIGH_AUTHORITY_SUFFIXES = (".gov", ".edu", ".mil")
 HIGH_AUTHORITY_DOMAINS = {
@@ -124,8 +137,53 @@ def _extract_title(html: str) -> str | None:
     return title[:200] if title else None
 
 
+def _extract_meta_description(html: str) -> str | None:
+    for pattern in (META_DESC_PATTERN, META_DESC_ALT_PATTERN):
+        match = pattern.search(html)
+        if match:
+            description = unescape(re.sub(r"\s+", " ", match.group(1))).strip()
+            if description:
+                return description[:500]
+    return None
+
+
+def html_to_plain_text(html: str) -> str:
+    """Extract readable plain text from HTML for claim matching."""
+    cleaned = SCRIPT_STYLE_PATTERN.sub(" ", html)
+    paragraphs = [
+        unescape(TAG_PATTERN.sub(" ", paragraph)).strip()
+        for paragraph in PARAGRAPH_PATTERN.findall(cleaned)
+    ]
+    paragraphs = [part for part in paragraphs if len(part) > 40]
+    if paragraphs:
+        text = " ".join(paragraphs)
+    else:
+        text = unescape(TAG_PATTERN.sub(" ", cleaned))
+    text = WHITESPACE_PATTERN.sub(" ", text).strip()
+    return text[:MAX_PAGE_TEXT_CHARS]
+
+
+def _build_page_text(html: str, title: str | None, meta_description: str | None) -> str | None:
+    body_text = html_to_plain_text(html)
+    parts = []
+    if title:
+        parts.append(f"Title: {title}")
+    if meta_description:
+        parts.append(f"Description: {meta_description}")
+    if body_text:
+        parts.append(f"Content: {body_text}")
+    combined = "\n".join(parts).strip()
+    return combined[:MAX_PAGE_TEXT_CHARS] if combined else None
+
+
 def fetch_url_metadata(url: str) -> CheckedSource:
     domain = parse_domain(url)
+    title = None
+    meta_description = None
+    page_text = None
+    status_code = None
+    reachable = False
+
     try:
         request = Request(url, headers={"User-Agent": USER_AGENT})
         with urlopen(request, timeout=FETCH_TIMEOUT_SEC) as response:
@@ -133,22 +191,22 @@ def fetch_url_metadata(url: str) -> CheckedSource:
             content_type = response.headers.get("Content-Type", "")
             body = response.read(MAX_BODY_BYTES)
             reachable = 200 <= status_code < 400
-            title = None
-            if "html" in content_type.lower():
-                title = _extract_title(body.decode("utf-8", errors="ignore"))
+            if reachable and "html" in content_type.lower():
+                html = body.decode("utf-8", errors="ignore")
+                title = _extract_title(html)
+                meta_description = _extract_meta_description(html)
+                page_text = _build_page_text(html, title, meta_description)
     except HTTPError as exc:
         status_code = exc.code
-        reachable = False
-        title = None
     except (URLError, TimeoutError, ValueError):
         status_code = None
-        reachable = False
-        title = None
 
     quality, quality_note = classify_domain(domain, reachable)
     notes = quality_note
     if title:
         notes = f"{quality_note} Title: {title}"
+    if reachable and not page_text:
+        notes = f"{notes} Source content could not be extracted.".strip()
 
     return CheckedSource(
         url=url,
@@ -156,6 +214,8 @@ def fetch_url_metadata(url: str) -> CheckedSource:
         reachable=reachable,
         status_code=status_code,
         title=title,
+        meta_description=meta_description,
+        page_text=page_text,
         source_quality=quality,
         notes=notes,
     )
@@ -208,6 +268,7 @@ def format_sources_for_prompt(sources: list[CheckedSource]) -> str:
     lines = []
     for source in sources:
         title = source.title or "(no title)"
+        excerpt = source.page_text[:1200] if source.page_text else "(no extractable content)"
         lines.append(
             f"- {source.url}\n"
             f"  domain: {source.domain}\n"
@@ -215,6 +276,7 @@ def format_sources_for_prompt(sources: list[CheckedSource]) -> str:
             f"  status_code: {source.status_code}\n"
             f"  title: {title}\n"
             f"  source_quality: {source.source_quality}\n"
-            f"  notes: {source.notes}"
+            f"  notes: {source.notes}\n"
+            f"  excerpt: {excerpt}"
         )
     return "\n".join(lines)

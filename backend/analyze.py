@@ -5,6 +5,7 @@ import os
 from google.genai import errors as genai_errors
 from google.genai import types
 
+from backend.claim_matcher import build_support_summary, match_claims_to_sources
 from backend.demo_trust import demo_trust_report
 from backend.gemini_client import generate_with_fallback, get_client
 from backend.source_checker import (
@@ -106,14 +107,57 @@ def _blend_source_quality(
     )
 
 
+def _blend_citation_accuracy(
+    gemini_score: int,
+    claims: list[ClaimAnalysis],
+) -> CategoryScore:
+    if not claims or not any(claim.support_label for claim in claims):
+        return CategoryScore(score=gemini_score, summary="")
+
+    label_scores = {
+        "supported": 92,
+        "weakly_supported": 68,
+        "not_supported": 28,
+        "unclear": 50,
+        "source_unavailable": 35,
+    }
+    average = sum(label_scores.get(claim.support_label or "unclear", 50) for claim in claims) / len(claims)
+    blended = round(0.5 * gemini_score + 0.5 * average)
+    matched = sum(
+        1 for claim in claims if claim.support_label in ("supported", "weakly_supported")
+    )
+    return CategoryScore(
+        score=blended,
+        summary=f"{matched}/{len(claims)} claims matched to supportive or partial source evidence.",
+    )
+
+
 def draft_to_response(
     draft: TrustAnalysisDraft,
     sources: list[CheckedSource],
+    claims: list[ClaimAnalysis] | None = None,
+    support_summary: str | None = None,
 ) -> AnalyzeResponse:
+    final_claims = claims or [
+        ClaimAnalysis(
+            text=claim.text,
+            status=claim.status,
+            citations=claim.related_citations,
+            note=claim.note,
+        )
+        for claim in draft.claims
+    ]
+
     source_quality = _blend_source_quality(draft.source_quality.score, sources)
     if draft.source_quality.summary:
         source_quality.summary = (
             f"{draft.source_quality.summary} {source_quality.summary}".strip()
+        )
+
+    citation_accuracy = _blend_citation_accuracy(draft.citation_accuracy.score, final_claims)
+    if draft.citation_accuracy.summary:
+        citation_accuracy.summary = (
+            f"{draft.citation_accuracy.summary} {citation_accuracy.summary}".strip()
         )
 
     categories = {
@@ -122,10 +166,7 @@ def draft_to_response(
             summary=draft.claim_support.summary,
         ),
         "source_quality": source_quality,
-        "citation_accuracy": CategoryScore(
-            score=draft.citation_accuracy.score,
-            summary=draft.citation_accuracy.summary,
-        ),
+        "citation_accuracy": citation_accuracy,
         "freshness": CategoryScore(
             score=draft.freshness.score,
             summary=draft.freshness.summary,
@@ -135,23 +176,14 @@ def draft_to_response(
             summary=draft.bias_context.summary,
         ),
     }
-    claims = [
-        ClaimAnalysis(
-            text=claim.text,
-            status=claim.status,
-            citations=claim.related_citations,
-            note=claim.note,
-        )
-        for claim in draft.claims
-    ]
     return AnalyzeResponse(
         overall_score=compute_overall_score(categories),
         categories=categories,
-        claims=claims,
+        claims=final_claims,
         sources=sources,
         source_summary=build_source_summary(sources),
         headline=draft.headline,
-        support_summary=draft.support_summary,
+        support_summary=support_summary or draft.support_summary,
     )
 
 
@@ -168,7 +200,20 @@ def _analyze_with_gemini(request: AnalyzeRequest, sources: list[CheckedSource]) 
         ),
     )
     draft = TrustAnalysisDraft.model_validate_json(response.text)
-    return draft_to_response(draft, sources)
+
+    try:
+        matched_claims = match_claims_to_sources(draft.claims, sources)
+        support_summary = build_support_summary(matched_claims)
+    except Exception:
+        matched_claims = None
+        support_summary = draft.support_summary
+
+    return draft_to_response(
+        draft,
+        sources,
+        claims=matched_claims,
+        support_summary=support_summary,
+    )
 
 
 def analyze_response(request: AnalyzeRequest) -> AnalyzeResponse:

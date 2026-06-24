@@ -166,9 +166,11 @@ Example response shape:
   },
   "claims": [
     {
-      "text": "Example claim from the AI response.",
+      "text": "Example factual claim from the AI response.",
       "status": "weakly_supported",
-      "note": "The citation is related, but does not clearly prove the full claim."
+      "matched_source": "https://example.com/article",
+      "support_label": "weakly_supported",
+      "evidence_note": "The source discusses the topic but does not clearly prove the full claim."
     }
   ],
   "sources": [
@@ -205,11 +207,10 @@ Example response shape:
 
 - Detect ChatGPT responses automatically
 - Extract factual claims and citations (`/api/analyze`)
-- Score claim support, source quality, citation accuracy, freshness, missing context
-- Extension routes code responses → `/api/review`, text responses → `/api/analyze`
+- Fetch and classify cited URLs with reachability checks
+- Match claims to source excerpts with support labels
 - Show trust badge and detailed panel for both modes
 - Add Google AI Overview support
-- Add deeper claim-to-source content matching
 
 ### Phase 3 — Expanded Platform Support
 

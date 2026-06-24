@@ -1,5 +1,6 @@
 """Offline demo trust analysis when API quota is unavailable."""
 
+from backend.claim_matcher import build_support_summary
 from backend.source_checker import build_source_summary, classify_domain, parse_domain
 from backend.trust_models import AnalyzeResponse, CategoryScore, ClaimAnalysis, CheckedSource
 
@@ -15,7 +16,9 @@ def _demo_sources(urls: list[str]) -> list[CheckedSource]:
                 domain=domain or "unknown",
                 reachable=True,
                 status_code=200,
-                title=None,
+                title="Demo source title",
+                meta_description="Demo source description for offline analysis.",
+                page_text="Demo source excerpt. Live page content was not fetched.",
                 source_quality=quality,
                 notes=f"Demo metadata only — live fetch not performed. {notes}",
             )
@@ -30,13 +33,21 @@ def demo_trust_report(text: str, urls: list[str] | None = None) -> AnalyzeRespon
     has_urls = len(sources) > 0
     word_count = len(text.split())
     source_summary = build_source_summary(sources) if sources else None
+    matched_url = urls[0] if urls else None
 
     claims = [
         ClaimAnalysis(
             text="The response presents factual statements that could be verified with external sources.",
-            status="unclear" if not has_urls else "weakly_supported",
+            status="weakly_supported" if has_urls else "unclear",
             citations=urls[:1],
             note="Preliminary demo analysis — full source verification not performed.",
+            matched_source=matched_url,
+            support_label="weakly_supported" if has_urls else "source_unavailable",
+            evidence_note=(
+                "Demo mode: source appears related, but live claim-to-source matching was not performed."
+                if has_urls
+                else "No usable source content was available for this claim."
+            ),
         ),
     ]
     if word_count > 80:
@@ -45,7 +56,9 @@ def demo_trust_report(text: str, urls: list[str] | None = None) -> AnalyzeRespon
                 text="Some statements may require freshness verification depending on the topic.",
                 status="unclear",
                 citations=[],
-                note="Time-sensitive topics benefit from checking publication dates.",
+                matched_source=None,
+                support_label="unclear",
+                evidence_note="Time-sensitive topics benefit from checking publication dates.",
             )
         )
 
@@ -67,7 +80,7 @@ def demo_trust_report(text: str, urls: list[str] | None = None) -> AnalyzeRespon
             "citation_accuracy": CategoryScore(
                 score=70 if has_urls else 50,
                 summary=(
-                    "Citations appear related to the topic, but full claim-to-source matching is not verified."
+                    "Demo claim-source matching suggests partial support for at least one claim."
                     if has_urls
                     else "Without citations, structural citation accuracy cannot be assessed."
                 ),
@@ -85,5 +98,5 @@ def demo_trust_report(text: str, urls: list[str] | None = None) -> AnalyzeRespon
         sources=sources,
         source_summary=source_summary,
         headline="Preliminary credibility signal — some claims need stronger support",
-        support_summary=f"Demo analysis of {len(claims)} sample claim(s). Full claim extraction requires a live API key.",
+        support_summary=build_support_summary(claims),
     )
