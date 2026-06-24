@@ -186,6 +186,66 @@
   border-left: 3px solid #34a853;
 }
 
+.checkeverything-source-stats {
+  margin: 10px 0;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.checkeverything-source-stats div {
+  margin-bottom: 4px;
+}
+
+.checkeverything-source-issues {
+  margin: 0 0 10px 18px;
+  padding: 0;
+  font-size: 12px;
+  color: #b06000;
+}
+
+.checkeverything-sources {
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checkeverything-source-item {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.checkeverything-source-unreachable {
+  border-left: 3px solid #d93025;
+}
+
+.checkeverything-source-url {
+  font-weight: 600;
+}
+
+.checkeverything-source-meta {
+  font-size: 11px;
+  color: #5f6368;
+  margin-top: 2px;
+}
+
+.checkeverything-source-title {
+  margin-top: 4px;
+  color: #202124;
+}
+
+.checkeverything-source-note {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #3c4043;
+}
+
 .checkeverything-verdict {
   display: inline-block;
   font-size: 11px;

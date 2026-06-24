@@ -170,7 +170,23 @@ Example response shape:
       "status": "weakly_supported",
       "note": "The citation is related, but does not clearly prove the full claim."
     }
-  ]
+  ],
+  "sources": [
+    {
+      "url": "https://example.com/article",
+      "domain": "example.com",
+      "reachable": true,
+      "title": "Article title",
+      "source_quality": "medium",
+      "notes": "Reachable source, but authority level is unclear."
+    }
+  ],
+  "source_summary": {
+    "sources_checked": 1,
+    "reachable_count": 1,
+    "primary_official_count": 0,
+    "issues": []
+  }
 }
 ```
 
@@ -193,7 +209,7 @@ Example response shape:
 - Extension routes code responses → `/api/review`, text responses → `/api/analyze`
 - Show trust badge and detailed panel for both modes
 - Add Google AI Overview support
-- Add source URL fetching and source matching
+- Add deeper claim-to-source content matching
 
 ### Phase 3 — Expanded Platform Support
 

@@ -43,7 +43,7 @@ def test_draft_to_response_maps_categories_and_claims():
         support_summary="Strong support found for 0/1 claims",
     )
 
-    response = draft_to_response(draft)
+    response = draft_to_response(draft, sources=[])
 
     assert response.overall_score == 74
     assert response.categories["claim_support"].score == 70

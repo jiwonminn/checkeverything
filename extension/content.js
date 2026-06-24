@@ -16,9 +16,9 @@ const MODE_COPY = {
     panelTitle: "AI Response Trust Breakdown",
     panelSubtitle: "Preliminary Trust Analysis",
     disclaimer:
-      "Preliminary trust analysis based on claim structure and language. Full source verification is not included yet.",
+      "Preliminary trust analysis with cited source checks (reachability and domain type). Full content verification is not included yet.",
     roadmap:
-      "This is a credibility signal, not factual truth verification. URL fetching and source matching are planned.",
+      "Sources are fetched for title, domain, and reachability. Deeper claim-to-source content matching is planned.",
   },
 };
 
@@ -113,6 +113,45 @@ function createBadgeWrap(mode) {
   return { wrap, badge, subtitle, detailsBtn };
 }
 
+function renderSourceSummary(summary) {
+  if (!summary) return "";
+  const lines = [
+  `<div class="checkeverything-source-stats">
+    <div><strong>Sources checked:</strong> ${summary.sources_checked}</div>
+    <div><strong>Reachable:</strong> ${summary.reachable_count}/${summary.sources_checked}</div>
+    <div><strong>Primary/official sources:</strong> ${summary.primary_official_count}</div>
+  </div>`,
+  ];
+  if (summary.issues?.length) {
+    lines.push(
+      `<ul class="checkeverything-source-issues">${summary.issues
+        .map((issue) => `<li>${escapeHtml(issue)}</li>`)
+        .join("")}</ul>`
+    );
+  }
+  return lines.join("");
+}
+
+function renderSourcesList(sources) {
+  if (!sources?.length) return "";
+  const rows = sources
+    .map(
+      (source) => `
+      <li class="checkeverything-source-item ${source.reachable ? "" : "checkeverything-source-unreachable"}">
+        <div class="checkeverything-source-url">${escapeHtml(source.domain)}</div>
+        <div class="checkeverything-source-meta">
+          ${source.reachable ? "Reachable" : "Unreachable"}
+          · ${escapeHtml(source.source_quality)}
+        </div>
+        ${source.title ? `<div class="checkeverything-source-title">${escapeHtml(source.title)}</div>` : ""}
+        ${source.notes ? `<div class="checkeverything-source-note">${escapeHtml(source.notes)}</div>` : ""}
+      </li>
+    `
+    )
+    .join("");
+  return `<ul class="checkeverything-sources">${rows}</ul>`;
+}
+
 function renderTrustPanel(data) {
   const copy = MODE_COPY.trust;
   const categories = data.categories || {};
@@ -164,6 +203,8 @@ function renderTrustPanel(data) {
       </thead>
       <tbody>${categoryRows}</tbody>
     </table>
+    ${renderSourceSummary(data.source_summary)}
+    ${renderSourcesList(data.sources)}
     ${claims.length ? `<ul class="checkeverything-claims">${claimRows}</ul>` : ""}
     <small>Analysis type: ${escapeHtml(data.analysis_type || "preliminary")}</small>
   `;

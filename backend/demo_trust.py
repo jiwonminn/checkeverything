@@ -1,13 +1,35 @@
 """Offline demo trust analysis when API quota is unavailable."""
 
-from backend.trust_models import AnalyzeResponse, CategoryScore, ClaimAnalysis
+from backend.source_checker import build_source_summary, classify_domain, parse_domain
+from backend.trust_models import AnalyzeResponse, CategoryScore, ClaimAnalysis, CheckedSource
+
+
+def _demo_sources(urls: list[str]) -> list[CheckedSource]:
+    sources: list[CheckedSource] = []
+    for url in urls:
+        domain = parse_domain(url)
+        quality, notes = classify_domain(domain, reachable=True)
+        sources.append(
+            CheckedSource(
+                url=url,
+                domain=domain or "unknown",
+                reachable=True,
+                status_code=200,
+                title=None,
+                source_quality=quality,
+                notes=f"Demo metadata only — live fetch not performed. {notes}",
+            )
+        )
+    return sources
 
 
 def demo_trust_report(text: str, urls: list[str] | None = None) -> AnalyzeResponse:
     """Return a plausible preliminary trust report for demos and API fallbacks."""
     urls = urls or []
-    has_urls = len(urls) > 0
+    sources = _demo_sources(urls) if urls else []
+    has_urls = len(sources) > 0
     word_count = len(text.split())
+    source_summary = build_source_summary(sources) if sources else None
 
     claims = [
         ClaimAnalysis(
@@ -60,6 +82,8 @@ def demo_trust_report(text: str, urls: list[str] | None = None) -> AnalyzeRespon
             ),
         },
         claims=claims,
+        sources=sources,
+        source_summary=source_summary,
         headline="Preliminary credibility signal — some claims need stronger support",
         support_summary=f"Demo analysis of {len(claims)} sample claim(s). Full claim extraction requires a live API key.",
     )

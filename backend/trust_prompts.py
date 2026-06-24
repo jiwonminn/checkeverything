@@ -15,10 +15,12 @@ Tasks:
 
 3. Score these categories 0-100 with brief summaries:
    - claim_support: Are claims specific and reasonably supported in the text?
-   - source_quality: Are citations/URLs present and appear relevant? (source content not verified)
-   - citation_accuracy: Do cited links seem structurally related to the claims?
+   - source_quality: Use the checked source metadata (reachability, domain type, titles) — not guesses
+   - citation_accuracy: Do cited links match claims given checked source metadata?
    - freshness: Is information likely current or does it need freshness verification?
    - bias_context: Is language balanced and appropriately cautious vs overconfident?
+
+When checked source metadata is provided, factor unreachable URLs and low-authority domains into source_quality and citation_accuracy.
 
 4. Provide headline and support_summary using cautious professional wording.
    Good: "Some claims are weakly supported", "Strong support found for 4/6 claims"

@@ -5,6 +5,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+SourceQualityLevel = Literal["high", "medium-high", "medium", "low-medium", "low"]
+
 ClaimStatus = Literal[
     "strongly_supported",
     "weakly_supported",
@@ -48,10 +50,29 @@ class ClaimAnalysis(BaseModel):
     note: str = ""
 
 
+class CheckedSource(BaseModel):
+    url: str
+    domain: str
+    reachable: bool
+    status_code: int | None = None
+    title: str | None = None
+    source_quality: SourceQualityLevel
+    notes: str = ""
+
+
+class SourceCheckSummary(BaseModel):
+    sources_checked: int = 0
+    reachable_count: int = 0
+    primary_official_count: int = 0
+    issues: list[str] = Field(default_factory=list)
+
+
 class AnalyzeResponse(BaseModel):
     overall_score: int = Field(ge=0, le=100)
     categories: dict[str, CategoryScore]
     claims: list[ClaimAnalysis] = Field(default_factory=list)
+    sources: list[CheckedSource] = Field(default_factory=list)
+    source_summary: SourceCheckSummary | None = None
     headline: str = ""
     support_summary: str = ""
     analysis_type: Literal["preliminary"] = "preliminary"
