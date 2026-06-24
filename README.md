@@ -18,7 +18,7 @@ Also includes a multi-agent **code review** mode for ChatGPT code responses and 
   <img src="docs/demo/options-weights.png" alt="Configurable trust score weights" width="45%" />
 </p>
 
-> **Note:** Add screenshots to `docs/demo/` following [`docs/demo/DEMO_SCRIPT.md`](docs/demo/DEMO_SCRIPT.md). Run `./scripts/check-demo-assets.sh` to verify.
+> **Note:** Demo screenshots live in `docs/demo/`. To recapture them, follow [`docs/demo/DEMO_SCRIPT.md`](docs/demo/DEMO_SCRIPT.md) and run `./scripts/check-demo-assets.sh` to verify.
 
 | In 10 seconds | What CheckEverything shows |
 | --- | --- |
@@ -132,11 +132,20 @@ The current version uses a multi-agent review system to analyze code. Five speci
 | **Cloud Run** | Deployable backend using `./scripts/deploy-cloudrun.sh` |
 | **Chrome Extension APIs** | Browser-based overlay for AI response analysis |
 
-## Quick Start
+### Local dev (no API key)
 
 ```bash
 ./scripts/setup.sh
-cp .env.example .env   # add GEMINI_API_KEY
+./scripts/dev.sh   # offline demo mode — no Gemini key required
+```
+
+Open the printed URL. Use **Load sample** → **Run 5-Agent Review** (code) or **Check Trust Score** (AI Answer tab).
+
+### Live API
+
+```bash
+./scripts/setup.sh
+cp .env.example .env   # add GEMINI_API_KEY or Vertex credentials
 ./scripts/run.sh
 ```
 
@@ -145,6 +154,8 @@ Open the printed URL, then select:
 ```text
 Load sample → Run 5-Agent Review
 ```
+
+The web UI supports **rotating code samples** (per language), **adjustable agent weights** (code review), and **trust score weights** (AI Answer tab).
 
 ### PR Diff Review
 
@@ -196,9 +207,9 @@ GCP_PROJECT_ID=your-project ./scripts/deploy-cloudrun.sh
 }
 ```
 
-### Planned Trust Analysis API
+### Trust Analysis API
 
-**POST** `/api/analyze` — preliminary trust and credibility analysis for AI responses
+**POST** `/api/analyze` — trust and credibility analysis for AI responses (live; used by the extension and web UI)
 
 Optional `weights` object (percentages, normalized server-side if they do not sum to 100):
 
@@ -318,9 +329,9 @@ Example response shape:
 
 ## About
 
-Solo project by **Jiwon Min** at **York University**.
+**Jiwon Min** is a student at **York University** building tools at the intersection of AI and software quality. CheckEverything started as a way to make AI answers more transparent — not just a single score, but which claims are backed by sources and which are not.
 
-CheckEverything is a browser extension for checking AI-generated answers — extracting claims, verifying cited sources, and surfacing a transparent Trust Score. The repo also includes a multi-agent code review system built with Google ADK and Gemini.
+This repo is a solo project: a **Chrome extension** for Trust Scores on ChatGPT and Google AI Overview, plus a **web app** for multi-agent code review (Google ADK + Gemini). If you’re reviewing the project, start with `./scripts/dev.sh` — it runs fully offline with demo samples.
 
 ## License
 
