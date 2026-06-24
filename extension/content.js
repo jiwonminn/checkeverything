@@ -1,6 +1,35 @@
+const CE_SCRIPT_VERSION = "1.2.3";
+
+if (typeof window.__checkeverythingTeardown === "function") {
+  try {
+    window.__checkeverythingTeardown();
+  } catch {
+    // Previous injection may already be partially torn down.
+  }
+}
+window.__checkeverythingVersion = CE_SCRIPT_VERSION;
+
 const BADGE_CLASS = "checkeverything-badge";
 const WRAP_CLASS = "checkeverything-badge-wrap";
 const ATTACHED_ATTR = "data-checkeverything-attached";
+const ANALYSIS_TIMEOUT_MS = CE_REQUEST_TIMEOUT_MS + 5_000;
+
+async function runAnalysisRequest(payload) {
+  const result = await ceRunRequest(payload);
+  if (!result?.ok) {
+    throw new Error(result?.error || "Analysis failed");
+  }
+  return result.data;
+}
+
+function resetInjectedUi() {
+  document.querySelectorAll(`.${WRAP_CLASS}`).forEach((wrap) => wrap.remove());
+  document.querySelectorAll(`[${ATTACHED_ATTR}]`).forEach((el) => {
+    el.removeAttribute(ATTACHED_ATTR);
+  });
+}
+
+resetInjectedUi();
 
 const OVERVIEW_MIN_TEXT = 80;
 const OVERVIEW_MAX_TEXT = 20000;
@@ -169,15 +198,68 @@ const URL_IN_TEXT = /https?:\/\/[^\s<>"')\]]+/gi;
 const SKIP_URL_HOSTS = new Set(["chatgpt.com", "chat.openai.com", "openai.com", "localhost"]);
 
 function findConversationTurn(element) {
-  return element.closest('[data-testid^="conversation-turn"]') || element.closest("article") || element;
+  return (
+    element.closest('article[data-testid^="conversation-turn-"]') ||
+    element.closest('[data-testid^="conversation-turn"]') ||
+    element.closest('[data-testid="conversation-turn"]') ||
+    element.closest("article") ||
+    element
+  );
+}
+
+function isAssistantTurn(element) {
+  if (!element) return false;
+  return Boolean(
+    element.querySelector(
+      '[data-message-author-role="assistant"], [data-role="assistant"], [data-message-author="assistant"], .agent-turn'
+    ) ||
+      element.matches(
+        '[data-message-author-role="assistant"], [data-role="assistant"], [data-message-author="assistant"], .agent-turn'
+      )
+  );
 }
 
 function findAssistantAttachTarget(messageEl) {
-  const turn = messageEl.closest('[data-testid^="conversation-turn"]');
-  if (turn && turn.querySelector('[data-message-author-role="assistant"]')) {
+  const turn = findConversationTurn(messageEl);
+  if (turn !== messageEl && isAssistantTurn(turn)) {
     return turn;
   }
   return messageEl;
+}
+
+function collectChatGPTAssistantTargets() {
+  const targets = new Set();
+
+  const turnSelectors = [
+    'article[data-testid^="conversation-turn-"]',
+    '[data-testid^="conversation-turn"]',
+    '[data-testid="conversation-turn"]',
+  ];
+
+  for (const selector of turnSelectors) {
+    document.querySelectorAll(selector).forEach((turn) => {
+      if (isAssistantTurn(turn)) {
+        targets.add(findAssistantAttachTarget(turn));
+      }
+    });
+    if (targets.size) break;
+  }
+
+  if (!targets.size) {
+    const assistantSelectors = [
+      '[data-message-author-role="assistant"]',
+      '[data-role="assistant"]',
+      '[data-message-author="assistant"]',
+      ".agent-turn",
+    ];
+    for (const selector of assistantSelectors) {
+      document.querySelectorAll(selector).forEach((messageEl) => {
+        targets.add(findAssistantAttachTarget(messageEl));
+      });
+    }
+  }
+
+  return [...targets];
 }
 
 function shouldIncludeUrl(url) {
@@ -553,15 +635,53 @@ function getScoreFromResult(result) {
   return result.report?.overall_score ?? "?";
 }
 
+function closePanel(panel) {
+  panel.__checkeverythingCleanup?.();
+  panel.remove();
+}
+
 function showPanel(anchor, result) {
-  document.querySelectorAll(".checkeverything-panel").forEach((panel) => panel.remove());
+  document.querySelectorAll(".checkeverything-panel").forEach((panel) => closePanel(panel));
 
   const panel = document.createElement("div");
-  panel.className = "checkeverything-panel";
+  panel.className = "checkeverything-panel checkeverything-panel-fixed";
   panel.innerHTML =
     result.mode === "trust" ? renderTrustPanel(result) : renderCodePanel(result);
-  panel.querySelector(".checkeverything-close").onclick = () => panel.remove();
-  anchor.insertAdjacentElement("afterend", panel);
+  panel.querySelector(".checkeverything-close").onclick = () => closePanel(panel);
+
+  document.body.appendChild(panel);
+  positionFixedPanel(panel, anchor);
+  const reposition = () => positionFixedPanel(panel, anchor);
+  window.addEventListener("scroll", reposition, true);
+  window.addEventListener("resize", reposition);
+  panel.__checkeverythingCleanup = () => {
+    window.removeEventListener("scroll", reposition, true);
+    window.removeEventListener("resize", reposition);
+  };
+}
+
+function positionFixedPanel(panel, anchor) {
+  const margin = 12;
+  const maxWidth = Math.max(240, Math.min(640, window.innerWidth - margin * 2));
+  const maxHeight = Math.max(200, window.innerHeight - margin * 2);
+
+  panel.style.width = `${maxWidth}px`;
+  panel.style.maxHeight = `${maxHeight}px`;
+
+  const rect = anchor.getBoundingClientRect();
+  let left = Math.max(margin, Math.min(rect.left, window.innerWidth - maxWidth - margin));
+  let top = rect.bottom + margin;
+
+  const panelHeight = panel.offsetHeight;
+  if (top + panelHeight > window.innerHeight - margin) {
+    top = Math.max(margin, Math.min(rect.top - panelHeight - margin, window.innerHeight - panelHeight - margin));
+  }
+  if (top + panelHeight > window.innerHeight - margin) {
+    top = margin;
+  }
+
+  panel.style.top = `${top}px`;
+  panel.style.left = `${left}px`;
 }
 
 function buildAnalyzePayload(detected) {
@@ -588,13 +708,15 @@ function hasAnalyzableContent(detected) {
 }
 
 function attachBadge(targetEl, detected) {
+  if (window.__checkeverythingVersion !== CE_SCRIPT_VERSION) return;
   if (targetEl.querySelector(`.${WRAP_CLASS}`) || targetEl.hasAttribute(ATTACHED_ATTR)) {
     return;
   }
 
   const trustPlatform = detected.source || "chatgpt";
-  const { wrap, badge, detailsBtn, copy } = createBadgeWrap(detected.mode, trustPlatform);
+  const { wrap, badge, subtitle, detailsBtn, copy } = createBadgeWrap(detected.mode, trustPlatform);
   let lastResult = null;
+  let activeRequestId = 0;
 
   targetEl.setAttribute(ATTACHED_ATTR, "1");
   if (getComputedStyle(targetEl).position === "static") {
@@ -607,47 +729,73 @@ function attachBadge(targetEl, detected) {
   });
 
   badge.addEventListener("click", () => {
-    if (lastResult) {
-      showPanel(wrap, lastResult);
-      return;
-    }
+    try {
+      if (window.__checkeverythingVersion !== CE_SCRIPT_VERSION) return;
 
-    const detected = resolveDetection(targetEl);
-    const activeCopy =
-      detected.mode === "code" ? MODE_COPY.code : getTrustCopy(detected.source || trustPlatform);
-
-    if (!hasAnalyzableContent(detected)) {
-      badge.textContent = "⚠️ No content";
-      badge.title =
-        platform === "google_ai_overview"
-          ? "Could not extract enough AI Overview text. Wait for the overview to load, then click again."
-          : "Could not extract enough response text. Wait for ChatGPT to finish, then click again.";
-      return;
-    }
-
-    badge.textContent = "Analyzing response…";
-    badge.disabled = true;
-    detailsBtn.hidden = true;
-
-    const payload =
-      detected.mode === "code"
-        ? { type: "review", code: detected.code, language: detected.language }
-        : buildAnalyzePayload(detected);
-
-    chrome.runtime.sendMessage(payload, (response) => {
-      badge.disabled = false;
-      if (!response?.ok) {
-        badge.textContent = "⚠️ Error";
-        badge.title = response?.error || "Analysis failed";
+      if (lastResult) {
+        showPanel(wrap, lastResult);
         return;
       }
-      lastResult = response.data;
-      const score = getScoreFromResult(lastResult);
-      badge.textContent = `🛡️ Trust Score: ${score}%`;
-      badge.title = activeCopy.disclaimer;
-      detailsBtn.hidden = false;
-      showPanel(wrap, lastResult);
-    });
+
+      const detected = resolveDetection(targetEl);
+      const activeCopy =
+        detected.mode === "code" ? MODE_COPY.code : getTrustCopy(detected.source || trustPlatform);
+
+      if (!hasAnalyzableContent(detected)) {
+        badge.textContent = "⚠️ No content";
+        badge.title =
+          platform === "google_ai_overview"
+            ? "Could not extract enough AI Overview text. Wait for the overview to load, then click again."
+            : "Could not extract enough response text. Wait for ChatGPT to finish, then click again.";
+        return;
+      }
+
+      badge.textContent = "Analyzing response…";
+      badge.disabled = true;
+      detailsBtn.hidden = true;
+
+      const payload =
+        detected.mode === "code"
+          ? { type: "review", code: detected.code, language: detected.language }
+          : buildAnalyzePayload(detected);
+
+      const requestId = ++activeRequestId;
+      const timeoutId = setTimeout(() => {
+        if (requestId !== activeRequestId) return;
+        badge.disabled = false;
+        badge.textContent = "⚠️ Timeout";
+        badge.title =
+          "Analysis took too long. Open Extension options and confirm the API URL (local dev or Cloud Run).";
+      }, ANALYSIS_TIMEOUT_MS);
+
+      runAnalysisRequest(payload)
+        .then((data) => {
+          if (requestId !== activeRequestId) return;
+          lastResult = data;
+          const score = getScoreFromResult(lastResult);
+          badge.textContent = `🛡️ Trust Score: ${score}%`;
+          badge.title = activeCopy.disclaimer;
+          detailsBtn.hidden = false;
+          showPanel(wrap, lastResult);
+        })
+        .catch((err) => {
+          if (requestId !== activeRequestId) return;
+          badge.textContent = "⚠️ Error";
+          badge.title = err?.message || "Analysis failed";
+          subtitle.textContent = formatBadgeError(err?.message);
+          subtitle.style.color = "#c5221f";
+        })
+        .finally(() => {
+          clearTimeout(timeoutId);
+          if (requestId === activeRequestId) {
+            badge.disabled = false;
+          }
+        });
+    } catch (err) {
+      badge.disabled = false;
+      badge.textContent = "↻ Refresh page";
+      badge.title = err?.message || "Refresh this page after updating the extension.";
+    }
   });
 }
 
@@ -659,17 +807,7 @@ function scanChatGPTMessages() {
     return;
   }
 
-  const turns = document.querySelectorAll('[data-testid^="conversation-turn"]');
-  if (turns.length) {
-    turns.forEach((turn) => {
-      if (!turn.querySelector('[data-message-author-role="assistant"]')) return;
-      attachBadge(turn, detectChatGPTMode(turn));
-    });
-    return;
-  }
-
-  document.querySelectorAll('[data-message-author-role="assistant"]').forEach((messageEl) => {
-    const target = findAssistantAttachTarget(messageEl);
+  collectChatGPTAssistantTargets().forEach((target) => {
     attachBadge(target, detectChatGPTMode(target));
   });
 }
@@ -707,6 +845,24 @@ function scheduleScan() {
   });
 }
 
-const observer = new MutationObserver(() => scheduleScan());
-observer.observe(document.body, { childList: true, subtree: true });
-scheduleScan();
+function bootContentScript() {
+  if (!document.body) {
+    requestAnimationFrame(bootContentScript);
+    return;
+  }
+
+  const observer = new MutationObserver(() => scheduleScan());
+  observer.observe(document.body, { childList: true, subtree: true });
+  scheduleScan();
+
+  window.__checkeverythingTeardown = () => {
+    observer.disconnect();
+    document.querySelectorAll(".checkeverything-badge-wrap").forEach((wrap) => wrap.remove());
+    document.querySelectorAll(".checkeverything-panel").forEach((panel) => closePanel(panel));
+    document.querySelectorAll("[data-checkeverything-attached]").forEach((el) => {
+      el.removeAttribute("data-checkeverything-attached");
+    });
+  };
+}
+
+bootContentScript();

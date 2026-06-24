@@ -6,6 +6,8 @@
   margin: 8px 0;
   position: relative;
   z-index: 9999;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .checkeverything-badge {
@@ -21,6 +23,11 @@
   border-radius: 999px;
   cursor: pointer;
   z-index: 10;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  text-align: left;
 }
 
 .checkeverything-badge:hover {
@@ -33,8 +40,12 @@
 }
 
 .checkeverything-badge-subtitle {
+  flex: 1 1 100%;
+  min-width: 0;
   font-size: 11px;
   color: #5f6368;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-details-btn {
@@ -46,14 +57,20 @@
   border: 1px solid #dadce0;
   border-radius: 999px;
   cursor: pointer;
+  flex: 0 0 auto;
 }
 
 .checkeverything-details-btn:hover {
   background: #f8f9fa;
 }
 
+.checkeverything-panel,
+.checkeverything-panel * {
+  box-sizing: border-box;
+}
+
 .checkeverything-panel {
-  margin: 8px 0 16px;
+  margin: 0;
   padding: 12px 14px;
   background: #f8f9fa;
   border: 1px solid #dadce0;
@@ -61,25 +78,45 @@
   font-size: 13px;
   line-height: 1.5;
   color: #202124;
-  max-width: 640px;
-  position: relative;
-  z-index: 9999;
+  width: min(640px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.checkeverything-panel-fixed {
+  position: fixed;
+  max-height: calc(100vh - 24px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  z-index: 2147483646;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.18);
+  -webkit-overflow-scrolling: touch;
 }
 
 .checkeverything-panel-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.checkeverything-panel-header > div:first-child {
+  flex: 1 1 160px;
+  min-width: 0;
 }
 
 .checkeverything-panel-subtitle {
   font-size: 11px;
   color: #5f6368;
   margin-top: 2px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-score {
+  flex: 0 0 auto;
   margin-left: auto;
   font-size: 18px;
   font-weight: 700;
@@ -88,12 +125,14 @@
 }
 
 .checkeverything-close {
+  flex: 0 0 auto;
   background: none;
   border: none;
   font-size: 18px;
   cursor: pointer;
   color: #5f6368;
   line-height: 1;
+  padding: 0 2px;
 }
 
 .checkeverything-disclaimer {
@@ -104,12 +143,16 @@
   background: #fef7e0;
   border-radius: 8px;
   border-left: 3px solid #f9ab00;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-roadmap-note {
   margin: 0 0 10px;
   font-size: 11px;
   color: #5f6368;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-headline {
@@ -117,10 +160,13 @@
   font-size: 13px;
   font-weight: 600;
   color: #202124;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-category-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   margin: 10px 0;
   font-size: 12px;
@@ -132,6 +178,23 @@
   padding: 6px 8px;
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.checkeverything-category-table th:nth-child(1),
+.checkeverything-category-table td:nth-child(1) {
+  width: 30%;
+}
+
+.checkeverything-category-table th:nth-child(2),
+.checkeverything-category-table td:nth-child(2) {
+  width: 14%;
+}
+
+.checkeverything-category-table th:nth-child(3),
+.checkeverything-category-table td:nth-child(3) {
+  width: 56%;
 }
 
 .checkeverything-category-table th {
@@ -173,6 +236,9 @@
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-claim-pill-supported {
@@ -212,10 +278,13 @@
   background: #fff;
   border: 1px solid #e8eaed;
   border-radius: 8px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-claim-status-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   margin-bottom: 6px;
@@ -230,11 +299,15 @@
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
+  flex: 0 0 auto;
 }
 
 .checkeverything-claim-status {
   font-size: 12px;
   font-weight: 700;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-claim-confidence {
@@ -243,6 +316,8 @@
   border-radius: 6px;
   font-size: 12px;
   line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-confidence-high {
@@ -263,6 +338,8 @@
 .checkeverything-claim-text {
   font-weight: 500;
   margin-bottom: 4px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-claim-label {
@@ -278,12 +355,16 @@
   font-size: 12px;
   margin-top: 4px;
   color: #1a73e8;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-claim-note {
   margin-top: 6px;
   font-size: 12px;
   color: #3c4043;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-claim-supported {
@@ -368,6 +449,8 @@
   border: 1px solid #e8eaed;
   border-radius: 8px;
   font-size: 12px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-source-stats div {
@@ -379,6 +462,8 @@
   padding: 0;
   font-size: 12px;
   color: #b06000;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-sources {
@@ -394,6 +479,8 @@
   border: 1px solid #e8eaed;
   border-radius: 8px;
   font-size: 12px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-source-unreachable {
@@ -402,6 +489,8 @@
 
 .checkeverything-source-url {
   font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-source-meta {
@@ -413,12 +502,16 @@
 .checkeverything-source-title {
   margin-top: 4px;
   color: #202124;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-source-note {
   margin-top: 4px;
   font-size: 11px;
   color: #3c4043;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-verdict {
@@ -431,11 +524,16 @@
   background: #fef7e0;
   color: #ea8600;
   margin-bottom: 8px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-summary {
   margin: 0 0 8px;
   color: #3c4043;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .checkeverything-agents {
@@ -450,4 +548,67 @@
   padding: 2px 8px;
   background: #e8eaed;
   border-radius: 999px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (max-width: 420px) {
+  .checkeverything-panel-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .checkeverything-score {
+    margin-left: 0;
+  }
+
+  .checkeverything-category-table,
+  .checkeverything-category-table thead,
+  .checkeverything-category-table tbody,
+  .checkeverything-category-table tr,
+  .checkeverything-category-table th,
+  .checkeverything-category-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .checkeverything-category-table tr {
+    margin-bottom: 10px;
+    border: 1px solid #e8eaed;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .checkeverything-category-table th {
+    display: none;
+  }
+
+  .checkeverything-category-table td {
+    border: none;
+    border-bottom: 1px solid #e8eaed;
+    padding: 8px 10px;
+  }
+
+  .checkeverything-category-table td:last-child {
+    border-bottom: none;
+  }
+
+  .checkeverything-category-table td:nth-child(1)::before {
+    content: "Category: ";
+    font-weight: 700;
+    color: #5f6368;
+  }
+
+  .checkeverything-category-table td:nth-child(2)::before {
+    content: "Score: ";
+    font-weight: 700;
+    color: #5f6368;
+  }
+
+  .checkeverything-category-table td:nth-child(3)::before {
+    content: "Meaning: ";
+    font-weight: 700;
+    color: #5f6368;
+  }
 }

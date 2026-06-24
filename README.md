@@ -6,7 +6,15 @@ A browser extension that checks AI-generated answers by **extracting claims, che
 
 Also includes a multi-agent **code review** mode for ChatGPT code responses and a web UI for PR diffs.
 
-> **Competition submission:** See [`docs/SUBMISSION.md`](docs/SUBMISSION.md) for the one-page summary (problem, architecture, Google technology, demo flow, future work).
+> **Competition submission (GDG YorkU / Google Toronto):** Paste this README link in the form, or jump to [**Competition Submission**](#competition-submission) below.  
+> Also see: [`docs/SUBMISSION.md`](docs/SUBMISSION.md) (one-page) · [`docs/GOOGLE_CLOUD.md`](docs/GOOGLE_CLOUD.md) (Cloud Run deploy) · [`docs/demo/DEMO_SCRIPT.md`](docs/demo/DEMO_SCRIPT.md) (15–25s video)
+
+| Form field | Where to point judges |
+| --- | --- |
+| **Written summary link** | This README → [#competition-submission](#competition-submission) |
+| **Google technology** | Gemini API + ADK + Cloud Run (+ optional Vertex AI) — details below |
+| **Demo video** | Mock pages at `/demo` — script in `docs/demo/DEMO_SCRIPT.md` |
+| **Live backend** | Cloud Run HTTPS URL → Extension options → **Cloud Run** preset |
 
 ## Demo
 
@@ -37,6 +45,76 @@ Optional demo GIF: `docs/demo/trust-score-demo.gif`
 ```
 
 **Video demo (reliable path):** `./scripts/demo-screenshots.sh` → open `http://localhost:8080/demo` → reload extension → click **Trust Score** on mock ChatGPT. Avoid live ChatGPT/Google for judging — DOM and regional AI Overview vary. Full script: [`docs/demo/DEMO_SCRIPT.md`](docs/demo/DEMO_SCRIPT.md).
+
+## Competition Submission
+
+*Copy this section for judges, or link directly: [`README#competition-submission`](https://github.com/jiwonminn/checkeverything#competition-submission)*
+
+### Problem we targeted
+
+AI assistants (ChatGPT, Google AI Overview) answer with confident prose and citations, but users cannot easily tell:
+
+- which factual claims are actually supported by cited sources  
+- whether a citation is reachable, authoritative, or relevant  
+- when an answer overstates what the evidence supports  
+
+**Who this helps:** students verifying AI study answers, developers sanity-checking AI Overview summaries, and anyone who needs to see *which claims are backed* before trusting an answer.
+
+CheckEverything adds a **Trust Score badge** on AI responses plus **claim-level evidence** (Supported · Weakly supported · Not supported · Source unavailable) — a transparency layer, not a black-box verdict.
+
+### Architecture decisions
+
+| Decision | Why |
+| --- | --- |
+| **Chrome extension overlay** | Meets users where AI answers already appear; click-to-analyze only (no background scraping) |
+| **FastAPI backend on Cloud Run** | One HTTPS endpoint for extension, web UI, and mock demo pages |
+| **Source fetch before LLM** | Server fetches cited URLs (title, excerpt, domain tier) so Gemini reasons over real page text |
+| **Two-stage trust pipeline** | (1) Extract claims + category scores → (2) Match claims to source excerpts → weighted Trust Score |
+| **Google ADK `SequentialAgent`** | `trust_extractor_agent` → `trust_matcher_agent` when `USE_ADK=true` (production default on Cloud Run) |
+| **Heuristic score blending** | Combines Gemini judgment with reachability, domain authority, and support-label signals |
+| **Demo fallbacks** | `DEMO_MODE` + offline mock pages (`/demo/chatgpt`, `/demo/google-overview`) for reliable judging without live AI sites |
+| **5-agent code review (secondary)** | ADK `ParallelAgent` + coordinator for ChatGPT code blocks and PR diffs via web UI |
+
+See the [architecture diagram](#architecture) below.
+
+### Google technology used (and why)
+
+| Technology | Role in CheckEverything | Why we chose it |
+| --- | --- | --- |
+| **Gemini API** | Structured JSON for trust analysis, claim matching, and all code-review agents | `response_schema` gives reliable scores and claim lists; model fallback chain handles 429 rate limits |
+| **Google ADK** | Trust: `SequentialAgent` (extract → match). Code review: `ParallelAgent` + coordinator | Native multi-agent orchestration for both primary and secondary product paths |
+| **Cloud Run** | Production API + static web UI + demo pages in one container | Stateless deploy; extension calls a single public HTTPS URL |
+| **Cloud Build + Artifact Registry** | CI/CD via `cloudbuild.yaml` → Docker image → Cloud Run | Reproducible deploy with `./scripts/deploy-cloudrun.sh` |
+| **Secret Manager** | `GEMINI_API_KEY` mounted into Cloud Run at runtime | No API keys in git or container layers |
+| **Vertex AI** *(optional)* | Enterprise Gemini via `GOOGLE_GENAI_USE_VERTEXAI=true` | Same `google-genai` SDK; no API key in container when using GCP ADC |
+| **Chrome Extension (MV3)** | Content scripts on ChatGPT + Google Search AI Overview | Overlays Trust Score where users already read AI answers |
+
+**Form checkbox:** select **Multiple**, then **Gemini API**, **ADK**, and note **Cloud Run** in your written summary (Cloud Run is GCP infrastructure, not always a separate checkbox).
+
+**Deployed example:** after `./scripts/deploy-cloudrun.sh`, set Extension options → **Cloud Run** → your service URL (e.g. `https://checkeverything-….run.app`). Verify: `curl $URL/health`.
+
+Full GCP steps: [`docs/GOOGLE_CLOUD.md`](docs/GOOGLE_CLOUD.md).
+
+### What we'd improve with more time
+
+1. **More trust eval samples** — expand `eval/trust_samples.json` beyond the vitamin D scenario  
+2. **Caching + latency** — cache fetched sources; tune parallel Gemini steps  
+3. **More AI platforms** — Gemini app, Perplexity, Claude (shared content-script adapters)  
+4. **Analysis history** — dashboard for students and researchers  
+5. **Stronger source fetching** — readability extraction, paywall detection, topic-specific authority lists  
+
+### Quick start for judges (2 minutes, offline)
+
+```bash
+git clone https://github.com/jiwonminn/checkeverything.git && cd checkeverything
+./scripts/setup.sh
+./scripts/demo-screenshots.sh
+# Chrome → chrome://extensions → Load unpacked → extension/
+# Extension options → Local dev → Save
+# Open http://localhost:8080/demo → ChatGPT mock → click Trust Score
+```
+
+Optional live Gemini: add `GEMINI_API_KEY` to `.env`, set `DEMO_MODE=false`, run `./scripts/run.sh`.
 
 ## Problem
 
@@ -152,8 +230,10 @@ The current version uses a multi-agent review system to analyze code. Five speci
 | **Gemini API** | Structured JSON for trust analysis, claim matching, and all code-review agents | `response_schema` gives reliable scores and findings; fallback model chain handles 429s |
 | **Google ADK** | `SequentialAgent` trust graph (extract → match); `ParallelAgent` + coordinator for code review | Native multi-agent orchestration for both primary trust and secondary review paths |
 | **Vertex AI** | Optional `GOOGLE_GENAI_USE_VERTEXAI` deployment | Same SDK for GCP projects; no API key in the container |
-| **Cloud Run** | `./scripts/deploy-cloudrun.sh` + `Dockerfile` | Single HTTPS endpoint for extension + web UI |
-| **Chrome Extension APIs** | MV3 content scripts, `chrome.storage.sync`, service worker proxy | Overlay on ChatGPT/Google without CORS issues on third-party pages |
+| **Cloud Run** | Production backend (`Dockerfile`, `cloudbuild.yaml`, `./scripts/deploy-cloudrun.sh`) | Single HTTPS endpoint for extension + web UI + demo pages |
+| **Cloud Build + Artifact Registry** | Automated Docker build and push | Reproducible deploys from `cloudbuild.yaml` |
+| **Secret Manager** | `GEMINI_API_KEY` secret mounted at Cloud Run deploy | Keeps API keys out of source control |
+| **Chrome Extension (MV3)** | Content scripts on ChatGPT + Google Search | Direct `fetch` to backend; config synced via extension options |
 
 ### Local dev (no API key)
 
@@ -210,11 +290,36 @@ adk web adk_agents
 ./scripts/eval.sh --live       # live Gemini API for both harnesses
 ```
 
-### Deploy to Cloud Run
+### Deploy to Google Cloud Run
+
+One-command deploy (requires GCP project + billing + `gcloud` CLI):
 
 ```bash
-GCP_PROJECT_ID=your-project ./scripts/deploy-cloudrun.sh
+# 1. Set project in .env
+GOOGLE_CLOUD_PROJECT=your-gcp-project-id
+GOOGLE_CLOUD_LOCATION=northamerica-northeast2   # or us-central1
+
+# 2. Store Gemini key in Secret Manager (once per project)
+echo -n "YOUR_GEMINI_API_KEY" | gcloud secrets create GEMINI_API_KEY --data-file=-
+
+# 3. Deploy
+./scripts/deploy-cloudrun.sh
 ```
+
+After deploy, the script prints your **Cloud Run URL**. Then:
+
+1. **Test:** `curl https://YOUR-SERVICE-….run.app/health`
+2. **Extension:** Options → **Cloud Run** preset → **Save** → **Test connection**
+3. **Analyze:** use ChatGPT or mock demo with Cloud Run API URL
+
+| Cloud Run setting | Value |
+| --- | --- |
+| Service name | `checkeverything` |
+| Env vars | `USE_ADK=true`, `GEMINI_MODEL=gemini-2.5-flash-lite` |
+| Secrets | `GEMINI_API_KEY` from Secret Manager |
+| Auth | Public (`--allow-unauthenticated`) for extension access |
+
+Step-by-step IAM, Secret Manager, and troubleshooting: **[`docs/GOOGLE_CLOUD.md`](docs/GOOGLE_CLOUD.md)**.
 
 ## API
 

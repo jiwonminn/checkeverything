@@ -1,66 +1,108 @@
-const DEFAULT_API = "http://localhost:8080";
-const DEFAULT_WEIGHTS = {
-  claim_support: 35,
-  source_quality: 25,
-  citation_accuracy: 25,
-  bias_context: 10,
-  freshness: 5,
-};
+importScripts("api.js");
 
-async function postJson(apiUrl, path, body) {
-  let res;
-  try {
-    res = await fetch(`${apiUrl}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-  } catch (_err) {
-    throw new Error(
-      `Cannot reach API at ${apiUrl}. Start ./scripts/dev.sh (or ./scripts/run.sh) and set that URL in Extension options.`
-    );
-  }
-  const data = await res.json();
-  if (!res.ok) {
-    const detail = typeof data.detail === "string" ? data.detail : "Request failed";
-    throw new Error(detail);
-  }
-  return data;
+const CE_TAB_URLS = [
+  "https://chatgpt.com/*",
+  "https://chat.openai.com/*",
+  "https://www.google.com/search*",
+  "https://google.com/search*",
+];
+
+function ceTabMatches(url) {
+  if (!url) return false;
+  return (
+    url.startsWith("https://chatgpt.com/") ||
+    url.startsWith("https://chat.openai.com/") ||
+    url.includes("google.com/search")
+  );
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type !== "review" && message.type !== "analyze") return;
-
-  chrome.storage.sync.get({ apiUrl: DEFAULT_API, weights: DEFAULT_WEIGHTS }, async (config) => {
+async function readStoredConfig() {
+  return new Promise((resolve) => {
     try {
-      if (message.type === "analyze") {
-        const data = await postJson(config.apiUrl, "/api/analyze", {
-          text: message.text,
-          urls: message.urls || [],
-          source: message.source || "chatgpt",
-          weights: config.weights || DEFAULT_WEIGHTS,
-        });
-        sendResponse({
-          ok: true,
-          data: { mode: "trust", platform: message.source || "chatgpt", ...data },
-        });
-        return;
-      }
-
-      const data = await postJson(config.apiUrl, "/api/review", {
-        code: message.code,
-        language: message.language || "python",
-        context: "ChatGPT AI code review — CheckEverything extension",
-        submission_type: "code",
-      });
-      sendResponse({
-        ok: true,
-        data: { mode: "code", report: data.report, pipeline: data.pipeline },
-      });
-    } catch (err) {
-      sendResponse({ ok: false, error: err.message });
+      chrome.storage.sync.get(
+        { apiUrl: CE_DEFAULT_API, weights: CE_DEFAULT_WEIGHTS },
+        (config) => resolve(config)
+      );
+    } catch {
+      resolve({ apiUrl: CE_DEFAULT_API, weights: CE_DEFAULT_WEIGHTS });
     }
   });
+}
+
+async function syncConfigToTab(tabId, config) {
+  const payload = JSON.stringify({
+    apiUrl: ceNormalizeApiUrl(config.apiUrl || CE_DEFAULT_API),
+    weights: config.weights || CE_DEFAULT_WEIGHTS,
+  });
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (key, value) => localStorage.setItem(key, value),
+      args: [CE_CONFIG_STORAGE_KEY, payload],
+    });
+  } catch {
+    // Tab may not allow injection yet.
+  }
+}
+
+async function syncConfigToOpenTabs(config) {
+  const tabs = await chrome.tabs.query({ url: CE_TAB_URLS });
+  for (const tab of tabs) {
+    if (tab.id) await syncConfigToTab(tab.id, config);
+  }
+}
+
+async function reloadOpenTabs() {
+  const tabs = await chrome.tabs.query({ url: CE_TAB_URLS });
+  for (const tab of tabs) {
+    if (tab.id) {
+      try {
+        await chrome.tabs.reload(tab.id);
+      } catch {
+        // Tab may have closed.
+      }
+    }
+  }
+}
+
+chrome.runtime.onInstalled.addListener(async (details) => {
+  const config = await readStoredConfig();
+  await syncConfigToOpenTabs(config);
+
+  if (details.reason === "update") {
+    await reloadOpenTabs();
+    chrome.action.setBadgeText({ text: "" });
+    chrome.action.setTitle({
+      title: "CheckEverything — AI Trust Score",
+    });
+  }
+});
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status !== "complete" || !ceTabMatches(tab.url)) return;
+  const config = await readStoredConfig();
+  await syncConfigToTab(tabId, config);
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.type === "config_updated") {
+    syncConfigToOpenTabs(message).finally(() => sendResponse({ ok: true }));
+    return true;
+  }
+
+  if (message.type !== "review" && message.type !== "analyze") return;
+
+  let responded = false;
+  const reply = (payload) => {
+    if (responded) return;
+    responded = true;
+    sendResponse(payload);
+  };
+
+  ceRunRequest(message)
+    .then((result) => reply(result))
+    .catch((err) => reply({ ok: false, error: err.message }));
 
   return true;
 });

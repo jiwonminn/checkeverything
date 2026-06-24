@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "CheckEverything",
-  "version": "1.1.2",
+  "version": "1.2.3",
   "description": "AI response trust checker for ChatGPT and Google AI Overview — claim-level credibility analysis with source checks.",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "scripting", "tabs"],
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://chat.openai.com/*",
@@ -11,12 +11,18 @@
     "https://google.com/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
-    "https://*.run.app/*"
+    "https://*.run.app/*",
+    "https://*.a.run.app/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": ["unsupported.js"],
+      "run_at": "document_idle"
+    },
     {
       "matches": [
         "https://chatgpt.com/*",
@@ -26,7 +32,7 @@
         "http://localhost:8080/demo/*",
         "http://127.0.0.1:8080/demo/*"
       ],
-      "js": ["content.js"],
+      "js": ["api.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }
