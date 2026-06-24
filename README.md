@@ -84,7 +84,7 @@ Switch to the **PR Diff** tab, then paste `git diff` output or upload a `.diff` 
 # Chrome → chrome://extensions → Load unpacked → extension/
 ```
 
-The current extension detects ChatGPT assistant responses and shows a **Trust Score** badge (code review reliability). Click **View Details** for the full 5-agent breakdown. General AI credibility scoring is planned.
+The current extension detects ChatGPT assistant responses and **Google AI Overview** blocks on search pages, showing a **Trust Score** badge (click to analyze). General text uses preliminary trust analysis with claim-to-source matching.
 
 Planned extension direction:
 
@@ -209,8 +209,8 @@ Example response shape:
 - Extract factual claims and citations (`/api/analyze`)
 - Fetch and classify cited URLs with reachability checks
 - Match claims to source excerpts with support labels
+- Google AI Overview support on `google.com/search`
 - Show trust badge and detailed panel for both modes
-- Add Google AI Overview support
 
 ### Phase 3 — Expanded Platform Support
 

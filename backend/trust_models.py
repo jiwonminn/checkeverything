@@ -43,7 +43,7 @@ CATEGORY_WEIGHTS: dict[str, float] = {
 class AnalyzeRequest(BaseModel):
     text: str = Field(min_length=1, description="Full AI response text")
     urls: list[str] = Field(default_factory=list, description="Cited URLs extracted from the response")
-    source: Literal["chatgpt", "google_ai", "other"] = Field(default="chatgpt")
+    source: Literal["chatgpt", "google_ai", "google_ai_overview", "other"] = Field(default="chatgpt")
 
 
 class CategoryScore(BaseModel):

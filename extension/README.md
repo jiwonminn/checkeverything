@@ -1,23 +1,20 @@
 # CheckEverything Chrome Extension
 
-The CheckEverything Chrome extension detects AI-generated responses in ChatGPT and displays a trust score badge directly on the page.
+The CheckEverything Chrome extension detects AI-generated responses on **ChatGPT** and **Google AI Overview** and displays a trust score badge directly on the page.
 
 ## Current Version
 
-- Detects ChatGPT assistant responses
-- **Code responses** (with code blocks) → `/api/review` (5-agent code review)
-- **Text responses** (no code blocks) → `/api/analyze` (preliminary credibility analysis)
-- Displays a **Trust Score** badge with mode-specific subtitle
-- Shows detailed breakdown panel for both modes
+- **ChatGPT** assistant responses
+  - Code blocks → `/api/review` (5-agent code review)
+  - Text answers → `/api/analyze` (preliminary credibility analysis)
+- **Google Search AI Overview**
+  - Detects AI Overview containers on `google.com/search`
+  - Extracts overview text + cited links
+  - Sends to `/api/analyze` with `source: google_ai_overview`
+- Displays a **Trust Score** badge (click to analyze — never auto-runs)
+- Shows detailed breakdown with claim-to-source evidence
 
-> **Note:** Trust analysis is preliminary — it assesses claim structure, citations, and language. Full source verification is planned.
-
-## Planned Direction
-
-- Detect general AI responses automatically
-- Extract factual claims and citations
-- Score claim support, source quality, citation accuracy, freshness, and missing context
-- Support ChatGPT and Google AI results
+> **Note:** Google AI Overview DOM changes frequently. Detection uses multiple fallback signals and fails safely if no overview is found.
 
 ## Install (Developer Mode)
 
@@ -29,14 +26,14 @@ The CheckEverything Chrome extension detects AI-generated responses in ChatGPT a
 
 ## Usage
 
+### ChatGPT
 1. Ask ChatGPT a question (with or without code)
 2. Click **Trust Score** on the assistant response
-3. Wait for **Analyzing response…** to complete
-4. Click **View Details** to reopen the breakdown panel
 
-Routing:
-- Responses with code blocks → code review mode (`/api/review`)
-- General text responses → preliminary trust mode (`/api/analyze`)
+### Google AI Overview
+1. Search on Google until an **AI Overview** appears
+2. Click **Trust Score** on the overview block
+3. Panel subtitle: **Google AI Overview Trust Check**
 
 ## Configure for Cloud Run
 

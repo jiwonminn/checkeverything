@@ -4,6 +4,8 @@
   align-items: center;
   gap: 6px 8px;
   margin: 8px 0;
+  position: relative;
+  z-index: 9999;
 }
 
 .checkeverything-badge {
@@ -60,6 +62,8 @@
   line-height: 1.5;
   color: #202124;
   max-width: 640px;
+  position: relative;
+  z-index: 9999;
 }
 
 .checkeverything-panel-header {

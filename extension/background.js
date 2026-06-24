@@ -23,9 +23,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         const data = await postJson(config.apiUrl, "/api/analyze", {
           text: message.text,
           urls: message.urls || [],
-          source: "chatgpt",
+          source: message.source || "chatgpt",
         });
-        sendResponse({ ok: true, data: { mode: "trust", ...data } });
+        sendResponse({
+          ok: true,
+          data: { mode: "trust", platform: message.source || "chatgpt", ...data },
+        });
         return;
       }
 
