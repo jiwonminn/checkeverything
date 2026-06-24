@@ -18,7 +18,8 @@ const WEIGHT_FIELDS = [
 function readWeights() {
   const weights = {};
   for (const [elementId, key] of WEIGHT_FIELDS) {
-    weights[key] = Number(document.getElementById(elementId).value) || 0;
+    const input = document.getElementById(elementId);
+    weights[key] = input ? Number(input.value) || 0 : DEFAULT_WEIGHTS[key];
   }
   return weights;
 }
@@ -27,13 +28,15 @@ function updateWeightTotal() {
   const weights = readWeights();
   const total = Object.values(weights).reduce((sum, value) => sum + value, 0);
   const totalEl = document.getElementById("weightTotal");
+  if (!totalEl) return;
   totalEl.textContent = `Total: ${total}%`;
   totalEl.classList.toggle("invalid", total !== 100);
 }
 
 function setWeights(weights) {
   for (const [elementId, key] of WEIGHT_FIELDS) {
-    document.getElementById(elementId).value = weights[key];
+    const input = document.getElementById(elementId);
+    if (input) input.value = weights[key];
   }
   updateWeightTotal();
 }
@@ -47,7 +50,8 @@ document.getElementById("save").addEventListener("click", () => {
 });
 
 WEIGHT_FIELDS.forEach(([elementId]) => {
-  document.getElementById(elementId).addEventListener("input", updateWeightTotal);
+  const input = document.getElementById(elementId);
+  if (input) input.addEventListener("input", updateWeightTotal);
 });
 
 chrome.storage.sync.get({ apiUrl: DEFAULT_API, weights: DEFAULT_WEIGHTS }, (data) => {

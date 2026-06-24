@@ -1,19 +1,38 @@
 steps:
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        gcloud artifacts repositories describe checkeverything \
+          --location="${_REGION}" >/dev/null 2>&1 || \
+        gcloud artifacts repositories create checkeverything \
+          --repository-format=docker \
+          --location="${_REGION}" \
+          --description="CheckEverything container images"
   - name: gcr.io/cloud-builders/docker
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/checkeverything', '.']
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/checkeverything/app:latest
+      - .
   - name: gcr.io/cloud-builders/docker
-    args: ['push', 'gcr.io/$PROJECT_ID/checkeverything']
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/checkeverything/app:latest
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk
     entrypoint: gcloud
     args:
       - run
       - deploy
       - checkeverything
-      - --image=gcr.io/$PROJECT_ID/checkeverything
-      - --region=us-central1
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/checkeverything/app:latest
+      - --region=${_REGION}
       - --platform=managed
       - --allow-unauthenticated
       - --set-env-vars=USE_ADK=true,GEMINI_MODEL=gemini-2.5-flash-lite
       - --set-secrets=GEMINI_API_KEY=GEMINI_API_KEY:latest
+substitutions:
+  _REGION: us-central1
 images:
-  - gcr.io/$PROJECT_ID/checkeverything
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/checkeverything/app:latest
