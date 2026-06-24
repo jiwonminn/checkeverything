@@ -32,9 +32,83 @@ When users click the badge, they can see a detailed breakdown:
 
 ## Current Status
 
-**Current implementation:** AI-assisted code review using a 5-agent multi-agent system (Security, Correctness, Readability, Performance, Test Coverage) with a Chrome extension that scores code review responses on ChatGPT.
+**Trust checker (live):** Chrome extension on ChatGPT + Google AI Overview with trust badge, source checks, claim-to-source matching, and configurable score weights.
 
-**Next phase:** Expand the same scoring architecture to factual AI responses across ChatGPT and Google AI results — automatic detection, claim extraction, citation checking, and a transparent trust badge.
+**Code review (also live):** 5-agent multi-agent review for code snippets and PR diffs via web UI and ChatGPT code responses.
+
+## Demo
+
+CheckEverything overlays a **Trust Score** badge on AI answers. Click the badge to see claim-level evidence.
+
+| Feature | What you see |
+| --- | --- |
+| ChatGPT trust badge | Trust Score on assistant responses |
+| Google AI Overview badge | Trust Score on AI Overview blocks |
+| Claim-level matching | ✓ Supported / ~ Weakly supported / ! Not clearly supported |
+| Source checks | Reachability, domain type, and cited source list |
+
+### Screenshots
+
+Add captures to `docs/demo/` and they will appear here:
+
+| Screenshot | File |
+| --- | --- |
+| ChatGPT trust badge | `docs/demo/chatgpt-trust-badge.png` |
+| Google AI Overview badge | `docs/demo/google-ai-overview-badge.png` |
+| Claim evidence panel | `docs/demo/claim-evidence-panel.png` |
+| Source quality breakdown | `docs/demo/source-breakdown.png` |
+
+Optional: add a short GIF at `docs/demo/trust-score-demo.gif`.
+
+```bash
+./scripts/run.sh
+# Load extension → click Trust Score on ChatGPT or Google AI Overview
+```
+
+## Architecture
+
+```mermaid
+flowchart TB
+  subgraph browser [Chrome Extension]
+    CS[Content Script]
+    Badge[Trust Score Badge]
+    Panel[Detail Panel]
+  end
+
+  subgraph platforms [Platforms]
+    GPT[ChatGPT]
+    GAI[Google AI Overview]
+  end
+
+  subgraph api [FastAPI Backend]
+    Analyze["/api/analyze"]
+    Review["/api/review"]
+  end
+
+  subgraph pipeline [Trust Pipeline]
+    Claims[Claim Extraction]
+    Sources[URL Fetch + Classify]
+    Match[Claim-Source Matching]
+    Score[Weighted Trust Score]
+  end
+
+  GPT --> CS
+  GAI --> CS
+  CS --> Badge
+  Badge -->|click| Panel
+  CS -->|text + urls + weights| Analyze
+  CS -->|code| Review
+  Analyze --> Claims --> Sources --> Match --> Score
+  Score --> Panel
+```
+
+## Limitations
+
+- **Preliminary analysis, not fact-checking** — scores are credibility signals based on claim structure, source metadata, and excerpt matching.
+- **Source extraction** — some sites block requests, require JavaScript, or return incomplete page text.
+- **Google AI Overview DOM** — layout changes frequently; detection uses fallback heuristics and may miss some overviews.
+- **Claim matching** — compares against fetched excerpts (up to ~8k chars), not full document verification.
+- **English-first** — optimized for English AI responses; other languages may vary in quality.
 
 ## Current Implementation: 5-Agent Code Review
 
@@ -84,15 +158,7 @@ Switch to the **PR Diff** tab, then paste `git diff` output or upload a `.diff` 
 # Chrome → chrome://extensions → Load unpacked → extension/
 ```
 
-The current extension detects ChatGPT assistant responses and **Google AI Overview** blocks on search pages, showing a **Trust Score** badge (click to analyze). General text uses preliminary trust analysis with claim-to-source matching.
-
-Planned extension direction:
-
-- Detect AI responses automatically
-- Extract claims and citations
-- Show a trust score badge
-- Provide a detailed claim-level explanation
-- Support ChatGPT and Google AI results first
+The extension detects ChatGPT assistant responses and **Google AI Overview** blocks on search pages. Click **Trust Score** to analyze — claim evidence, source checks, and adjustable weights in extension options.
 
 See `extension/README.md`.
 
@@ -133,7 +199,24 @@ GCP_PROJECT_ID=your-project ./scripts/deploy-cloudrun.sh
 
 ### Planned Trust Analysis API
 
-**POST** `/api/analyze` — preliminary trust and credibility analysis for general AI responses (implemented)
+**POST** `/api/analyze` — preliminary trust and credibility analysis for AI responses
+
+Optional `weights` object (percentages, normalized server-side if they do not sum to 100):
+
+```json
+{
+  "text": "AI response text...",
+  "urls": ["https://example.com/article"],
+  "source": "google_ai_overview",
+  "weights": {
+    "claim_support": 35,
+    "source_quality": 25,
+    "citation_accuracy": 25,
+    "bias_context": 10,
+    "freshness": 5
+  }
+}
+```
 
 Returns claim-level breakdown with category scores. This is a **credibility signal**, not full factual verification.
 
@@ -215,10 +298,9 @@ Example response shape:
 ### Phase 3 — Expanded Platform Support
 
 - Gemini, Claude, Perplexity support
-- Adjustable scoring weights
-- User preference storage
 - History dashboard
 - Researcher / student / professional modes
+- README demo GIF and screenshot gallery
 
 ## Project Structure
 

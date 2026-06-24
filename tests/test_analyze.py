@@ -2,7 +2,8 @@
 
 import pytest
 
-from backend.analyze import compute_overall_score, draft_to_response
+from backend.trust_weights import compute_overall_score
+from backend.analyze import draft_to_response
 from backend.demo_trust import demo_trust_report
 from backend.trust_models import (
     AnalyzeRequest,

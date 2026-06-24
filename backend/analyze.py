@@ -24,6 +24,7 @@ from backend.trust_models import (
     CATEGORY_KEYS,
     CATEGORY_WEIGHTS,
 )
+from backend.trust_weights import compute_overall_score, normalize_weights
 from backend.trust_prompts import MAX_ANALYZE_CHARS, TRUST_ANALYSIS_INSTRUCTION
 
 
@@ -61,11 +62,6 @@ def _format_analyze_input(request: AnalyzeRequest, sources: list[CheckedSource])
         f"Checked source metadata:\n{format_sources_for_prompt(sources)}\n\n"
         f"AI response:\n{request.text.strip()}"
     )
-
-
-def compute_overall_score(categories: dict[str, CategoryScore]) -> int:
-    total = sum(categories[key].score * CATEGORY_WEIGHTS[key] for key in CATEGORY_KEYS)
-    return max(0, min(100, round(total)))
 
 
 def _heuristic_source_quality_score(sources: list[CheckedSource]) -> int | None:
@@ -137,6 +133,7 @@ def draft_to_response(
     sources: list[CheckedSource],
     claims: list[ClaimAnalysis] | None = None,
     support_summary: str | None = None,
+    weights: dict[str, float] | None = None,
 ) -> AnalyzeResponse:
     final_claims = claims or [
         ClaimAnalysis(
@@ -177,7 +174,7 @@ def draft_to_response(
         ),
     }
     return AnalyzeResponse(
-        overall_score=compute_overall_score(categories),
+        overall_score=compute_overall_score(categories, weights=weights),
         categories=categories,
         claims=final_claims,
         sources=sources,
@@ -200,6 +197,7 @@ def _analyze_with_gemini(request: AnalyzeRequest, sources: list[CheckedSource]) 
         ),
     )
     draft = TrustAnalysisDraft.model_validate_json(response.text)
+    active_weights = normalize_weights(request.weights)
 
     try:
         matched_claims = match_claims_to_sources(draft.claims, sources)
@@ -213,6 +211,7 @@ def _analyze_with_gemini(request: AnalyzeRequest, sources: list[CheckedSource]) 
         sources,
         claims=matched_claims,
         support_summary=support_summary,
+        weights=active_weights,
     )
 
 
@@ -220,9 +219,10 @@ def analyze_response(request: AnalyzeRequest) -> AnalyzeResponse:
     """Run preliminary trust analysis on an AI-generated response."""
     _validate_request(request)
     urls = merge_urls(request.urls, request.text)
+    active_weights = normalize_weights(request.weights)
 
     if _demo_mode_enabled():
-        return demo_trust_report(request.text, urls)
+        return demo_trust_report(request.text, urls, weights=active_weights)
 
     sources = check_sources(urls)
 
@@ -230,5 +230,5 @@ def analyze_response(request: AnalyzeRequest) -> AnalyzeResponse:
         return _analyze_with_gemini(request, sources)
     except Exception as exc:
         if _is_recoverable_api_error(exc):
-            return demo_trust_report(request.text, urls)
+            return demo_trust_report(request.text, urls, weights=active_weights)
         raise

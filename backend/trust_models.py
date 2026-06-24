@@ -39,11 +39,24 @@ CATEGORY_WEIGHTS: dict[str, float] = {
     "freshness": 0.05,
 }
 
+DEFAULT_WEIGHT_PERCENTAGES: dict[str, int] = {
+    key: int(value * 100) for key, value in CATEGORY_WEIGHTS.items()
+}
+
+
+class TrustWeights(BaseModel):
+    claim_support: int = Field(default=35, ge=0, le=100)
+    source_quality: int = Field(default=25, ge=0, le=100)
+    citation_accuracy: int = Field(default=25, ge=0, le=100)
+    bias_context: int = Field(default=10, ge=0, le=100)
+    freshness: int = Field(default=5, ge=0, le=100)
+
 
 class AnalyzeRequest(BaseModel):
     text: str = Field(min_length=1, description="Full AI response text")
     urls: list[str] = Field(default_factory=list, description="Cited URLs extracted from the response")
     source: Literal["chatgpt", "google_ai", "google_ai_overview", "other"] = Field(default="chatgpt")
+    weights: TrustWeights | None = None
 
 
 class CategoryScore(BaseModel):

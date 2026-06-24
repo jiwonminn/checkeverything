@@ -2,22 +2,62 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>checkeverything Options</title>
+  <title>CheckEverything Options</title>
   <style>
-    body { font-family: system-ui, sans-serif; padding: 16px; max-width: 400px; }
-    label { display: block; margin-bottom: 12px; font-size: 14px; }
-    input { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; padding: 16px; max-width: 420px; }
+    h2 { margin-top: 0; }
+    h3 { margin: 20px 0 8px; font-size: 15px; }
+    label { display: block; margin-bottom: 10px; font-size: 13px; }
+    input[type="url"], input[type="number"] {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      box-sizing: border-box;
+    }
+    .weight-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .weight-row input { width: 88px; margin-top: 0; }
+    #weightTotal { font-size: 13px; margin: 8px 0 12px; color: #5f6368; }
+    #weightTotal.invalid { color: #d93025; font-weight: 600; }
     button { padding: 8px 16px; background: #4285f4; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
     #status { margin-top: 12px; font-size: 13px; color: #34a853; }
+    .hint { font-size: 12px; color: #5f6368; margin: 0 0 10px; }
   </style>
 </head>
 <body>
   <h2>CheckEverything</h2>
-  <p>Configure your local or Cloud Run API endpoint for trust score analysis.</p>
+  <p class="hint">Configure your API endpoint and trust score category weights.</p>
+
   <label>
     API URL
     <input id="apiUrl" type="url" placeholder="http://localhost:8080" />
   </label>
+
+  <h3>Trust Score Weights</h3>
+  <p class="hint">Percentages are normalized to 100% on the backend if they do not add up exactly.</p>
+
+  <div class="weight-row">
+    <label for="w_claim_support">Claim Support</label>
+    <input id="w_claim_support" type="number" min="0" max="100" />
+  </div>
+  <div class="weight-row">
+    <label for="w_source_quality">Source Quality</label>
+    <input id="w_source_quality" type="number" min="0" max="100" />
+  </div>
+  <div class="weight-row">
+    <label for="w_citation_accuracy">Citation Accuracy</label>
+    <input id="w_citation_accuracy" type="number" min="0" max="100" />
+  </div>
+  <div class="weight-row">
+    <label for="w_bias_context">Bias / Missing Context</label>
+    <input id="w_bias_context" type="number" min="0" max="100" />
+  </div>
+  <div class="weight-row">
+    <label for="w_freshness">Freshness</label>
+    <input id="w_freshness" type="number" min="0" max="100" />
+  </div>
+
+  <div id="weightTotal"></div>
+
   <button id="save">Save</button>
   <div id="status"></div>
   <script src="options.js"></script>

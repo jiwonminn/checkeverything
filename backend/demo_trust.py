@@ -1,5 +1,6 @@
 """Offline demo trust analysis when API quota is unavailable."""
 
+from backend.trust_weights import compute_overall_score
 from backend.claim_matcher import build_support_summary
 from backend.source_checker import build_source_summary, classify_domain, parse_domain
 from backend.trust_models import AnalyzeResponse, CategoryScore, ClaimAnalysis, CheckedSource
@@ -26,7 +27,11 @@ def _demo_sources(urls: list[str]) -> list[CheckedSource]:
     return sources
 
 
-def demo_trust_report(text: str, urls: list[str] | None = None) -> AnalyzeResponse:
+def demo_trust_report(
+    text: str,
+    urls: list[str] | None = None,
+    weights: dict[str, float] | None = None,
+) -> AnalyzeResponse:
     """Return a plausible preliminary trust report for demos and API fallbacks."""
     urls = urls or []
     sources = _demo_sources(urls) if urls else []
@@ -63,7 +68,16 @@ def demo_trust_report(text: str, urls: list[str] | None = None) -> AnalyzeRespon
         )
 
     return AnalyzeResponse(
-        overall_score=72 if has_urls else 58,
+        overall_score=compute_overall_score(
+            {
+                "claim_support": CategoryScore(score=68, summary=""),
+                "source_quality": CategoryScore(score=80 if has_urls else 45, summary=""),
+                "citation_accuracy": CategoryScore(score=70 if has_urls else 50, summary=""),
+                "freshness": CategoryScore(score=75, summary=""),
+                "bias_context": CategoryScore(score=72, summary=""),
+            },
+            weights=weights,
+        ),
         categories={
             "claim_support": CategoryScore(
                 score=68,
