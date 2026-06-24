@@ -6,6 +6,8 @@ A browser extension that checks AI-generated answers by **extracting claims, che
 
 Also includes a multi-agent **code review** mode for ChatGPT code responses and a web UI for PR diffs.
 
+> **Competition submission:** See [`docs/SUBMISSION.md`](docs/SUBMISSION.md) for the one-page summary (problem, architecture, Google technology, demo flow, future work).
+
 ## Demo
 
 <p align="center">
@@ -30,13 +32,17 @@ Also includes a multi-agent **code review** mode for ChatGPT code responses and 
 Optional demo GIF: `docs/demo/trust-score-demo.gif`
 
 ```bash
-./scripts/demo-screenshots.sh   # local mock pages — best for screenshots
+./scripts/demo-screenshots.sh   # recommended for judges — local mock pages, offline
 ./scripts/check-demo-assets.sh  # verify screenshots exist
 ```
+
+**Video demo (reliable path):** `./scripts/demo-screenshots.sh` → open `http://localhost:8080/demo` → reload extension → click **Trust Score** on mock ChatGPT. Avoid live ChatGPT/Google for judging — DOM and regional AI Overview vary. Full script: [`docs/demo/DEMO_SCRIPT.md`](docs/demo/DEMO_SCRIPT.md).
 
 ## Problem
 
 AI answers often sound confident, but users cannot easily tell whether claims are supported by real sources, citations actually prove what the AI says, information is outdated, or important context is missing.
+
+**Who this helps:** students verifying AI study answers, developers sanity-checking AI Overview summaries, and anyone who needs to see *which claims are backed* before trusting an answer.
 
 ## Solution
 
@@ -101,6 +107,17 @@ flowchart TB
   Score --> Panel
 ```
 
+### Architecture decisions
+
+| Choice | Why |
+| --- | --- |
+| **Click-to-analyze badge** | No background API calls on every AI page; user controls when to run analysis |
+| **Server-side URL fetch** | Citations are checked against real page excerpts, not just link text in the AI answer |
+| **Two Gemini calls (trust)** | Call 1: extract claims + category scores. Call 2: match claims to source excerpts. Structured JSON per stage is more reliable than one monolithic prompt |
+| **Heuristic score blending** | Source quality and citation accuracy combine Gemini judgment with reachability and support-label signals |
+| **ADK for code review only** | Trust pipeline is sequential fetch → analyze → match; code review fits ADK's `ParallelAgent` + coordinator pattern |
+| **Demo fallbacks** | `DEMO_MODE` and quota-aware fallbacks keep demos working without API keys or when external sites block fetches |
+
 ## Limitations
 
 - **Preliminary analysis, not fact-checking** — scores are credibility signals based on claim structure, source metadata, and excerpt matching.
@@ -124,13 +141,13 @@ The current version uses a multi-agent review system to analyze code. Five speci
 
 ## Google Technology
 
-| Tech | Usage |
-| --- | --- |
-| **Google ADK** | `ParallelAgent` for specialist agents, followed by `SequentialAgent` and coordinator |
-| **Gemini API** | Structured JSON output per agent |
-| **Vertex AI** | Optional enterprise deployment path |
-| **Cloud Run** | Deployable backend using `./scripts/deploy-cloudrun.sh` |
-| **Chrome Extension APIs** | Browser-based overlay for AI response analysis |
+| Tech | Usage | Why |
+| --- | --- | --- |
+| **Gemini API** | Structured JSON for trust analysis, claim matching, and all code-review agents | `response_schema` gives reliable scores and findings; fallback model chain handles 429s |
+| **Google ADK** | `ParallelAgent` for 5 specialists → `SequentialAgent` coordinator (code review) | Native multi-agent orchestration instead of hand-rolled parallel fan-out |
+| **Vertex AI** | Optional `GOOGLE_GENAI_USE_VERTEXAI` deployment | Same SDK for GCP projects; no API key in the container |
+| **Cloud Run** | `./scripts/deploy-cloudrun.sh` + `Dockerfile` | Single HTTPS endpoint for extension + web UI |
+| **Chrome Extension APIs** | MV3 content scripts, `chrome.storage.sync`, service worker proxy | Overlay on ChatGPT/Google without CORS issues on third-party pages |
 
 ### Local dev (no API key)
 
@@ -289,29 +306,22 @@ Example response shape:
 
 ## Product Roadmap
 
-### Phase 1 — Current Build
+### Shipped (v1)
 
-- 5-agent code review system
-- FastAPI backend
-- Chrome extension for ChatGPT code review responses
-- Streaming review UI
-- PR diff review support
-- Google ADK + Gemini integration
+- Trust Score Chrome extension (ChatGPT + Google AI Overview)
+- Claim extraction, source fetch, claim-to-source matching (`/api/analyze`)
+- Configurable trust score weights (extension + web UI)
+- 5-agent code review with Google ADK + Gemini
+- Streaming review UI, PR diff upload, Cloud Run deploy path
+- Local mock demo pages for reliable judging (`/demo/chatgpt`, `/demo/google-overview`)
 
-### Phase 2 — Trust Score MVP
+### Next
 
-- Detect ChatGPT responses automatically
-- Extract factual claims and citations (`/api/analyze`)
-- Fetch and classify cited URLs with reachability checks
-- Match claims to source excerpts with support labels
-- Google AI Overview support on `google.com/search`
-- Show trust badge and detailed panel for both modes
-
-### Phase 3 — Expanded Platform Support
-
-- Gemini, Claude, Perplexity support
-- History dashboard
-- Researcher / student / professional modes
+- Trust eval harness with labeled claim-support samples
+- ADK graph for trust pipeline (unified Google agent story)
+- Gemini, Claude, Perplexity adapters
+- Analysis history dashboard
+- Stronger source fetching (paywalls, topic-specific authority lists)
 
 ## Project Structure
 

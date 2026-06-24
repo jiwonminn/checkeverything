@@ -38,6 +38,7 @@ def test_adk_quota_error_falls_back_to_demo(monkeypatch):
         raise RuntimeError("429 RESOURCE_EXHAUSTED")
 
     monkeypatch.setattr("backend.orchestrator.review_code_with_adk", raise_quota_error)
+    monkeypatch.setattr("backend.orchestrator._run_agents_parallel", raise_quota_error)
 
     result = review_code(SAMPLE, "python", "unit test")
     assert result.pipeline == "demo"

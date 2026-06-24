@@ -221,16 +221,24 @@ def analyze_response(request: AnalyzeRequest) -> AnalyzeResponse:
 
     if _demo_mode_enabled():
         if _is_screenshot_demo_request(request):
-            return demo_trust_screenshot_report(request.urls, weights=active_weights)
-        return demo_trust_report(request.text, urls, weights=active_weights)
+            return demo_trust_screenshot_report(request.urls, weights=active_weights).model_copy(
+                update={"pipeline": "demo"}
+            )
+        return demo_trust_report(request.text, urls, weights=active_weights).model_copy(
+            update={"pipeline": "demo"}
+        )
 
     sources = check_sources(urls)
 
     try:
-        return _analyze_with_gemini(request, sources)
+        return _analyze_with_gemini(request, sources).model_copy(update={"pipeline": "gemini"})
     except Exception as exc:
         if is_recoverable_api_error(exc):
             if _is_screenshot_demo_request(request):
-                return demo_trust_screenshot_report(urls, weights=active_weights)
-            return demo_trust_report(request.text, urls, weights=active_weights)
+                return demo_trust_screenshot_report(urls, weights=active_weights).model_copy(
+                    update={"pipeline": "demo_fallback"}
+                )
+            return demo_trust_report(request.text, urls, weights=active_weights).model_copy(
+                update={"pipeline": "demo_fallback"}
+            )
         raise

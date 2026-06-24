@@ -36,6 +36,8 @@ echo
 echo "DEMO_MODE=true (no Gemini API calls for trust analysis)"
 echo "Server: http://localhost:${PORT}"
 echo
+echo "Tip: use PORT=8080 if the extension options still point to :8080"
+echo
 echo "1. Reload extension in chrome://extensions"
 echo "2. Extension options → API URL → http://localhost:${PORT}"
 echo

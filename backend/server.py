@@ -170,7 +170,7 @@ async def create_review(request: ReviewRequest):
 
 @app.post("/api/analyze")
 async def analyze_ai_response(request: AnalyzeRequest):
-    """Analyze an AI response for trust and credibility (planned)."""
+    """Analyze an AI response for trust and credibility."""
     try:
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(None, lambda: analyze_response(request))

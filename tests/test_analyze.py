@@ -82,6 +82,7 @@ def test_analyze_response_in_demo_mode(monkeypatch):
         AnalyzeRequest(text="Regular exercise can improve sleep quality for many adults.")
     )
     assert result.analysis_type == "preliminary"
+    assert result.pipeline == "demo"
     assert result.overall_score >= 0
 
 

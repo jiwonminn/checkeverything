@@ -8,11 +8,18 @@ const DEFAULT_WEIGHTS = {
 };
 
 async function postJson(apiUrl, path, body) {
-  const res = await fetch(`${apiUrl}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(`${apiUrl}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (_err) {
+    throw new Error(
+      `Cannot reach API at ${apiUrl}. Start ./scripts/dev.sh (or ./scripts/run.sh) and set that URL in Extension options.`
+    );
+  }
   const data = await res.json();
   if (!res.ok) {
     const detail = typeof data.detail === "string" ? data.detail : "Request failed";

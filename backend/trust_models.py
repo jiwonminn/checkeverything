@@ -97,6 +97,9 @@ class SourceCheckSummary(BaseModel):
     issues: list[str] = Field(default_factory=list)
 
 
+TrustPipelineType = Literal["demo", "gemini", "demo_fallback"]
+
+
 class AnalyzeResponse(BaseModel):
     overall_score: int = Field(ge=0, le=100)
     categories: dict[str, CategoryScore]
@@ -106,6 +109,7 @@ class AnalyzeResponse(BaseModel):
     headline: str = ""
     support_summary: str = ""
     analysis_type: Literal["preliminary"] = "preliminary"
+    pipeline: TrustPipelineType = "gemini"
 
 
 class CategoryAssessment(BaseModel):
