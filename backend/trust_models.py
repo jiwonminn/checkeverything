@@ -15,6 +15,8 @@ SupportLabel = Literal[
     "source_unavailable",
 ]
 
+ConfidenceLevel = Literal["high", "medium", "low"]
+
 ClaimStatus = Literal[
     "strongly_supported",
     "weakly_supported",
@@ -72,6 +74,8 @@ class ClaimAnalysis(BaseModel):
     matched_source: str | None = None
     support_label: SupportLabel | None = None
     evidence_note: str = ""
+    confidence_level: ConfidenceLevel | None = None
+    confidence_note: str = ""
 
 
 class CheckedSource(BaseModel):

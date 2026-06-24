@@ -3,7 +3,7 @@
 from google.genai import types
 
 from backend.gemini_client import generate_with_fallback, get_client
-from backend.source_checker import parse_domain
+from backend.confidence import apply_confidence
 from backend.trust_models import (
     ClaimAnalysis,
     ClaimDraft,
@@ -80,33 +80,39 @@ def _format_claims_for_matching(claims: list[ClaimDraft]) -> str:
 def _fallback_match(claim: ClaimDraft, sources: list[CheckedSource]) -> ClaimAnalysis:
     related = _pick_related_source(claim, sources)
     if not sources or not related:
-        return ClaimAnalysis(
-            text=claim.text,
-            status="unclear",
-            citations=claim.related_citations,
-            note=claim.note,
-            matched_source=None,
-            support_label="source_unavailable",
-            evidence_note="No usable source content was available for this claim.",
+        return apply_confidence(
+            ClaimAnalysis(
+                text=claim.text,
+                status="unclear",
+                citations=claim.related_citations,
+                note=claim.note,
+                matched_source=None,
+                support_label="source_unavailable",
+                evidence_note="No usable source content was available for this claim.",
+            )
         )
     if not related.reachable or not related.page_text:
-        return ClaimAnalysis(
+        return apply_confidence(
+            ClaimAnalysis(
+                text=claim.text,
+                status="unclear",
+                citations=claim.related_citations or [related.url],
+                note=claim.note,
+                matched_source=related.url,
+                support_label="source_unavailable",
+                evidence_note="Source unavailable or content could not be extracted.",
+            )
+        )
+    return apply_confidence(
+        ClaimAnalysis(
             text=claim.text,
-            status="unclear",
+            status=claim.status,
             citations=claim.related_citations or [related.url],
             note=claim.note,
             matched_source=related.url,
-            support_label="source_unavailable",
-            evidence_note="Source unavailable or content could not be extracted.",
+            support_label="unclear",
+            evidence_note="Source content was fetched, but automated matching was unavailable.",
         )
-    return ClaimAnalysis(
-        text=claim.text,
-        status=claim.status,
-        citations=claim.related_citations or [related.url],
-        note=claim.note,
-        matched_source=related.url,
-        support_label="unclear",
-        evidence_note="Source content was fetched, but automated matching was unavailable.",
     )
 
 
@@ -133,14 +139,16 @@ def _merge_match(
     if matched_source and matched_source not in citations:
         citations.append(matched_source)
 
-    return ClaimAnalysis(
-        text=claim.text,
-        status=support_label_to_status(support_label),
-        citations=citations,
-        note=claim.note,
-        matched_source=matched_source,
-        support_label=support_label,
-        evidence_note=match_item.evidence_note,
+    return apply_confidence(
+        ClaimAnalysis(
+            text=claim.text,
+            status=support_label_to_status(support_label),
+            citations=citations,
+            note=claim.note,
+            matched_source=matched_source,
+            support_label=support_label,
+            evidence_note=match_item.evidence_note,
+        )
     )
 
 

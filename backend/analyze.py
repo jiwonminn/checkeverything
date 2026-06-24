@@ -5,7 +5,7 @@ import os
 from google.genai import errors as genai_errors
 from google.genai import types
 
-from backend.claim_matcher import build_support_summary, match_claims_to_sources
+from backend.confidence import apply_confidence
 from backend.demo_trust import demo_trust_report
 from backend.gemini_client import generate_with_fallback, get_client
 from backend.source_checker import (
@@ -136,11 +136,13 @@ def draft_to_response(
     weights: dict[str, float] | None = None,
 ) -> AnalyzeResponse:
     final_claims = claims or [
-        ClaimAnalysis(
-            text=claim.text,
-            status=claim.status,
-            citations=claim.related_citations,
-            note=claim.note,
+        apply_confidence(
+            ClaimAnalysis(
+                text=claim.text,
+                status=claim.status,
+                citations=claim.related_citations,
+                note=claim.note,
+            )
         )
         for claim in draft.claims
     ]

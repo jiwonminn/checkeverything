@@ -1,5 +1,6 @@
 """Offline demo trust analysis when API quota is unavailable."""
 
+from backend.confidence import apply_confidence
 from backend.trust_weights import compute_overall_score
 from backend.claim_matcher import build_support_summary
 from backend.source_checker import build_source_summary, classify_domain, parse_domain
@@ -41,29 +42,33 @@ def demo_trust_report(
     matched_url = urls[0] if urls else None
 
     claims = [
-        ClaimAnalysis(
-            text="The response presents factual statements that could be verified with external sources.",
-            status="weakly_supported" if has_urls else "unclear",
-            citations=urls[:1],
-            note="Preliminary demo analysis — full source verification not performed.",
-            matched_source=matched_url,
-            support_label="weakly_supported" if has_urls else "source_unavailable",
-            evidence_note=(
-                "Demo mode: source appears related, but live claim-to-source matching was not performed."
-                if has_urls
-                else "No usable source content was available for this claim."
-            ),
+        apply_confidence(
+            ClaimAnalysis(
+                text="The response presents factual statements that could be verified with external sources.",
+                status="weakly_supported" if has_urls else "unclear",
+                citations=urls[:1],
+                note="Preliminary demo analysis — full source verification not performed.",
+                matched_source=matched_url,
+                support_label="weakly_supported" if has_urls else "source_unavailable",
+                evidence_note=(
+                    "Demo mode: source appears related, but live claim-to-source matching was not performed."
+                    if has_urls
+                    else "No usable source content was available for this claim."
+                ),
+            )
         ),
     ]
     if word_count > 80:
         claims.append(
-            ClaimAnalysis(
-                text="Some statements may require freshness verification depending on the topic.",
-                status="unclear",
-                citations=[],
-                matched_source=None,
-                support_label="unclear",
-                evidence_note="Time-sensitive topics benefit from checking publication dates.",
+            apply_confidence(
+                ClaimAnalysis(
+                    text="Some statements may require freshness verification depending on the topic.",
+                    status="unclear",
+                    citations=[],
+                    matched_source=None,
+                    support_label="unclear",
+                    evidence_note="Time-sensitive topics benefit from checking publication dates.",
+                )
             )
         )
 

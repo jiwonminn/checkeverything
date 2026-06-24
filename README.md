@@ -1,10 +1,38 @@
-# CheckEverything — AI Response Trust & Credibility Checker
+# CheckEverything
 
-**A Chrome extension that automatically analyzes AI-generated answers and gives users a transparent trust score with claim-level evidence — powered by Google ADK + Gemini**
+**CheckEverything is a Chrome extension that overlays a Trust Score on AI-generated answers and shows which claims are supported, weakly supported, unsupported, or linked to unavailable sources.**
 
-checkeverything is a Chrome extension and backend system that helps users evaluate how trustworthy AI-generated responses are. Instead of giving only a vague score, checkeverything breaks down AI answers into clear categories such as **claim support, source quality, citation accuracy, freshness, and missing context**.
+A browser extension that checks AI-generated answers by **extracting claims, checking cited sources, matching claims to source text, and showing a transparent Trust Score** — powered by Google Gemini.
 
-The first version started as an AI code review assistant, but the product is expanding into a broader AI response credibility checker.
+Also includes a multi-agent **code review** mode for ChatGPT code responses and a web UI for PR diffs.
+
+## Demo
+
+<p align="center">
+  <img src="docs/demo/chatgpt-badge.png" alt="Trust Score badge on ChatGPT" width="45%" />
+  <img src="docs/demo/google-ai-overview-badge.png" alt="Trust Score badge on Google AI Overview" width="45%" />
+</p>
+
+<p align="center">
+  <img src="docs/demo/claim-panel-statuses.png" alt="Claim panel with colored support statuses" width="45%" />
+  <img src="docs/demo/options-weights.png" alt="Configurable trust score weights" width="45%" />
+</p>
+
+> **Note:** Add screenshots to `docs/demo/` following [`docs/demo/DEMO_SCRIPT.md`](docs/demo/DEMO_SCRIPT.md). Run `./scripts/check-demo-assets.sh` to verify.
+
+| In 10 seconds | What CheckEverything shows |
+| --- | --- |
+| Trust Score badge | Overlays on ChatGPT + Google AI Overview |
+| Source checks | Reachable? Official domain? |
+| Claim evidence | ✓ Supported · ~ Weakly supported · High/Medium/Low confidence |
+| Your priorities | Adjustable category weights in extension options |
+
+Optional demo GIF: `docs/demo/trust-score-demo.gif`
+
+```bash
+./scripts/run.sh
+./scripts/check-demo-assets.sh   # verify screenshots exist
+```
 
 ## Problem
 
@@ -12,7 +40,7 @@ AI answers often sound confident, but users cannot easily tell whether claims ar
 
 ## Solution
 
-CheckEverything overlays a trust badge on AI responses and breaks down the score into source quality, claim support, citation accuracy, freshness, and missing context. The goal is not to simply say "true" or "false," but to help users understand which parts of an AI response are **strongly supported, weakly supported, unclear, or potentially outdated**.
+CheckEverything overlays a **Trust Score** badge on AI responses. Click it to see category scores, checked sources, and claim-level evidence — not just a single number.
 
 Example:
 
@@ -34,36 +62,7 @@ When users click the badge, they can see a detailed breakdown:
 
 **Trust checker (live):** Chrome extension on ChatGPT + Google AI Overview with trust badge, source checks, claim-to-source matching, and configurable score weights.
 
-**Code review (also live):** 5-agent multi-agent review for code snippets and PR diffs via web UI and ChatGPT code responses.
-
-## Demo
-
-CheckEverything overlays a **Trust Score** badge on AI answers. Click the badge to see claim-level evidence.
-
-| Feature | What you see |
-| --- | --- |
-| ChatGPT trust badge | Trust Score on assistant responses |
-| Google AI Overview badge | Trust Score on AI Overview blocks |
-| Claim-level matching | ✓ Supported / ~ Weakly supported / ! Not clearly supported |
-| Source checks | Reachability, domain type, and cited source list |
-
-### Screenshots
-
-Add captures to `docs/demo/` and they will appear here:
-
-| Screenshot | File |
-| --- | --- |
-| ChatGPT trust badge | `docs/demo/chatgpt-trust-badge.png` |
-| Google AI Overview badge | `docs/demo/google-ai-overview-badge.png` |
-| Claim evidence panel | `docs/demo/claim-evidence-panel.png` |
-| Source quality breakdown | `docs/demo/source-breakdown.png` |
-
-Optional: add a short GIF at `docs/demo/trust-score-demo.gif`.
-
-```bash
-./scripts/run.sh
-# Load extension → click Trust Score on ChatGPT or Google AI Overview
-```
+**Code review (also included):** 5-agent review for code snippets and PR diffs via web UI and ChatGPT code responses.
 
 ## Architecture
 
@@ -253,6 +252,8 @@ Example response shape:
       "status": "weakly_supported",
       "matched_source": "https://example.com/article",
       "support_label": "weakly_supported",
+      "confidence_level": "medium",
+      "confidence_note": "Source is related but does not fully prove the claim.",
       "evidence_note": "The source discusses the topic but does not clearly prove the full claim."
     }
   ],
@@ -300,7 +301,6 @@ Example response shape:
 - Gemini, Claude, Perplexity support
 - History dashboard
 - Researcher / student / professional modes
-- README demo GIF and screenshot gallery
 
 ## Project Structure
 
@@ -320,7 +320,7 @@ Example response shape:
 
 Solo project by **Jiwon Min** at **York University**.
 
-checkeverything started as a multi-agent code review tool using Google ADK and Gemini. It is evolving into a broader AI credibility checker that helps users understand whether AI-generated responses are supported, reliable, and properly cited.
+CheckEverything is a browser extension for checking AI-generated answers — extracting claims, verifying cited sources, and surfacing a transparent Trust Score. The repo also includes a multi-agent code review system built with Google ADK and Gemini.
 
 ## License
 

@@ -237,6 +237,29 @@
   font-weight: 700;
 }
 
+.checkeverything-claim-confidence {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.checkeverything-confidence-high {
+  background: #e6f4ea;
+  color: #137333;
+}
+
+.checkeverything-confidence-medium {
+  background: #fef7e0;
+  color: #8a5700;
+}
+
+.checkeverything-confidence-low {
+  background: #f1f3f4;
+  color: #5f6368;
+}
+
 .checkeverything-claim-text {
   font-weight: 500;
   margin-bottom: 4px;

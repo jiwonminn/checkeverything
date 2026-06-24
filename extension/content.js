@@ -64,6 +64,29 @@ const CLAIM_DISPLAY = {
   source_unavailable: { icon: "×", label: "Source unavailable", priority: 3 },
 };
 
+const CONFIDENCE_DISPLAY = {
+  high: {
+    label: "High confidence",
+    fallbackNote: "Source directly supports the claim.",
+  },
+  medium: {
+    label: "Medium confidence",
+    fallbackNote: "Source is related but does not fully prove the claim.",
+  },
+  low: {
+    label: "Low confidence",
+    fallbackNote: "Source unavailable or does not clearly support the claim.",
+  },
+};
+
+const SUPPORT_TO_CONFIDENCE = {
+  supported: "high",
+  weakly_supported: "medium",
+  unclear: "medium",
+  not_supported: "low",
+  source_unavailable: "low",
+};
+
 const STATUS_TO_SUPPORT = {
   strongly_supported: "supported",
   weakly_supported: "weakly_supported",
@@ -78,6 +101,13 @@ function getClaimSupportKey(claim) {
 
 function getClaimDisplay(claim) {
   return CLAIM_DISPLAY[getClaimSupportKey(claim)] || CLAIM_DISPLAY.unclear;
+}
+
+function getConfidenceDisplay(claim) {
+  const level = claim.confidence_level || SUPPORT_TO_CONFIDENCE[getClaimSupportKey(claim)] || "low";
+  const meta = CONFIDENCE_DISPLAY[level] || CONFIDENCE_DISPLAY.low;
+  const note = claim.confidence_note || meta.fallbackNote;
+  return { level, label: meta.label, note };
 }
 
 function sortClaimsForDisplay(claims) {
@@ -336,6 +366,7 @@ function renderTrustPanel(data) {
     .map((claim) => {
       const supportKey = getClaimSupportKey(claim);
       const display = getClaimDisplay(claim);
+      const confidence = getConfidenceDisplay(claim);
       const matchedDomain = sourceDomain(claim.matched_source);
       const note = claim.evidence_note || claim.note;
       return `
@@ -344,10 +375,13 @@ function renderTrustPanel(data) {
             <span class="checkeverything-claim-icon" aria-hidden="true">${display.icon}</span>
             <span class="checkeverything-claim-status checkeverything-claim-status-${supportKey}">${escapeHtml(display.label)}</span>
           </div>
+          <div class="checkeverything-claim-confidence checkeverything-confidence-${confidence.level}">
+            <strong>${escapeHtml(confidence.label)}</strong> — ${escapeHtml(confidence.note)}
+          </div>
           <div class="checkeverything-claim-label">Claim</div>
           <div class="checkeverything-claim-text">${escapeHtml(claim.text)}</div>
           ${matchedDomain ? `<div class="checkeverything-claim-source"><strong>Source:</strong> ${escapeHtml(matchedDomain)}</div>` : ""}
-          ${note ? `<div class="checkeverything-claim-note"><strong>Note:</strong> ${escapeHtml(note)}</div>` : ""}
+          ${note ? `<div class="checkeverything-claim-note"><strong>Evidence:</strong> ${escapeHtml(note)}</div>` : ""}
         </li>
       `;
     })
