@@ -55,6 +55,123 @@ def _first_match_hint(code: str, patterns: list[str]) -> str | None:
     return None
 
 
+def _symbol_near_line(code: str, line_hint: str | None, language: str) -> str:
+    if not line_hint:
+        return "this code"
+    match = re.search(r"line (\d+)", line_hint)
+    if not match:
+        return "this code"
+    line_no = int(match.group(1))
+    lines = code.splitlines()
+    for idx in range(min(line_no, len(lines)) - 1, -1, -1):
+        line = lines[idx]
+        if language == "python":
+            fn = re.search(r"def\s+(\w+)", line)
+            if fn:
+                return fn.group(1)
+        if language in {"javascript", "typescript", "other"}:
+            fn = re.search(r"function\s+(\w+)|(?:export\s+)?(?:async\s+)?function\s+(\w+)", line)
+            if fn:
+                return fn.group(1) or fn.group(2)
+            fn = re.search(r"(?:export\s+)?(?:async\s+)?(\w+)\s*\(", line)
+            if fn and fn.group(1) not in {"if", "for", "while", "switch"}:
+                return fn.group(1)
+        if language == "java":
+            fn = re.search(r"(?:public|private|protected)?\s+\w+\s+(\w+)\s*\(", line)
+            if fn:
+                return fn.group(1)
+        if language == "go":
+            fn = re.search(r"func\s+(?:\([^)]+\)\s+)?(\w+)", line)
+            if fn:
+                return fn.group(1)
+    return "this code"
+
+
+def _enrich_finding(finding: Finding, code: str, language: str) -> Finding:
+    sym = _symbol_near_line(code, finding.line_hint, language)
+    copy = {
+        "SQL injection risk": (
+            f"In `{sym}()`, user-controlled input is embedded in a SQL string. "
+            "An attacker could bypass authentication or read arbitrary rows using payloads like `' OR '1'='1`.",
+            "Use parameterized queries with bound placeholders instead of string interpolation.",
+        ),
+        "Arbitrary code execution via eval()": (
+            f"`{sym}()` passes untrusted input to `eval()`, which executes arbitrary JavaScript. "
+            "A malicious payload can exfiltrate secrets or hijack the server process.",
+            "Parse structured input with `JSON.parse` and validate against a strict schema; never eval user input.",
+        ),
+        "Arbitrary code execution via exec()": (
+            f"`{sym}()` uses `exec()` on data that may be attacker-controlled, enabling full code execution.",
+            "Replace `exec()` with safe parsing (`json.loads`, config loaders, or whitelisted operations).",
+        ),
+        "Hardcoded secret in source": (
+            f"A secret is hardcoded near `{sym}()`. Anyone with repo access can extract it; it also leaks via logs and stack traces.",
+            "Load secrets from environment variables or a secret manager and rotate any exposed values.",
+        ),
+        "Path traversal risk": (
+            f"`{sym}()` builds a filesystem path from user input without sanitization. "
+            "Attackers can request `../../etc/passwd` to read files outside the intended directory.",
+            "Allowlist filenames, strip `..` segments, and resolve paths under a trusted root before reading.",
+        ),
+        "Command injection risk": (
+            f"`{sym}()` passes external input to a shell command. Attackers can chain commands with `; rm -rf /`.",
+            "Use argument arrays (no shell), validate input against a strict allowlist, and avoid string concatenation.",
+        ),
+        "Script engine executes user input": (
+            f"`{sym}()` evaluates caller-supplied scripts via a script engine, equivalent to arbitrary code execution.",
+            "Remove dynamic script evaluation or run it in an isolated sandbox with no filesystem/network access.",
+        ),
+        "Cross-site scripting (XSS) risk": (
+            f"`{sym}()` renders user content as HTML without escaping. Attackers can inject `<script>` tags to steal sessions.",
+            "Escape all dynamic output or use a template engine with contextual auto-escaping enabled.",
+        ),
+        "Weak password hashing": (
+            f"`{sym}()` uses MD5 for credentials. MD5 is fast to brute-force and unsuitable for passwords or tokens.",
+            "Switch to bcrypt, scrypt, or Argon2 with a unique salt per credential.",
+        ),
+        "Sensitive data in logs": (
+            f"`{sym}()` writes secrets or tokens to logs. Logs are often broadly accessible and retained long-term.",
+            "Log only non-sensitive identifiers; redact tokens and never log raw passwords.",
+        ),
+        "Off-by-one loop bounds": (
+            f"The loop in `{sym}()` iterates one index past the end of the collection, causing runtime errors or wrong totals.",
+            "Use `range(len(items))`, `i < items.length`, or iterate the collection directly.",
+        ),
+        "Ignored error return values": (
+            f"`{sym}()` discards errors (`_`), so failures fail silently and callers assume success.",
+            "Handle or propagate errors explicitly and return a failure response when operations do not succeed.",
+        ),
+        "Unchecked lookup may fail": (
+            f"`{sym}()` indexes a map/dict without checking membership. Missing keys raise exceptions or return `undefined`.",
+            "Validate the key first, use `.get()` with a default, or return a clear not-found error.",
+        ),
+        "No visible unit tests": (
+            "Critical paths in this submission have no accompanying tests, so regressions will reach production unnoticed.",
+            "Add unit tests for happy paths, invalid input, and each security-sensitive branch named in findings.",
+        ),
+        "New database connection per call": (
+            f"`{sym}()` opens a new database connection on every call, adding latency and risking connection exhaustion under load.",
+            "Reuse a connection pool or inject a shared client created at application startup.",
+        ),
+        "Unbounded worker goroutines": (
+            f"`{sym}()` spawns a large number of goroutines without backpressure, which can exhaust memory under traffic spikes.",
+            "Use a bounded worker pool with a job queue and ensure workers exit when the queue closes.",
+        ),
+        "Cache without eviction policy": (
+            f"The cache in `{sym}()` never expires entries, so memory grows unbounded and stale data may be served indefinitely.",
+            "Add TTL, LRU eviction, or explicit invalidation when underlying data changes.",
+        ),
+    }
+    if finding.title in copy:
+        description, recommendation = copy[finding.title]
+        return finding.model_copy(update={"description": description, "recommendation": recommendation})
+    return finding
+
+
+def _enrich_findings(code: str, language: str, findings: list[Finding]) -> list[Finding]:
+    return [_enrich_finding(f, code, language) for f in findings]
+
+
 def _count_functions(code: str, language: str) -> int:
     if language in {"python"}:
         return len(re.findall(r"^\s*def\s+\w+", code, re.MULTILINE))
@@ -432,16 +549,28 @@ def _detect_test_findings(code: str, language: str) -> list[Finding]:
     return findings
 
 
-def _build_agent_report(agent_name: str, findings: list[Finding]) -> AgentFindingReport:
+def _build_agent_report(
+    agent_name: str,
+    findings: list[Finding],
+    code: str,
+    language: str,
+) -> AgentFindingReport:
+    findings = _enrich_findings(code, language, findings)
     score = _score_from_findings(findings)
     if not findings:
-        summary = "No major issues detected in this dimension for the submitted snippet."
+        summary = "Reviewed this area — no significant issues stood out in the submitted snippet."
     else:
-        titles = ", ".join(finding.title for finding in findings[:3])
+        lead = findings[0].title
         if score < 50:
-            summary = f"Flagged {len(findings)} issue(s): {titles}."
+            summary = (
+                f"{len(findings)} issue(s) need attention before merge; "
+                f"start with {lead.lower()}."
+            )
         else:
-            summary = f"Noted {len(findings)} issue(s): {titles}."
+            summary = (
+                f"{len(findings)} minor issue(s) noted — "
+                f"main concern is {lead.lower()}."
+            )
 
     return AgentFindingReport(
         agent_name=agent_name,
@@ -508,6 +637,8 @@ def _build_markdown(
     overall_score: int,
     verdict: str,
     executive_summary: str,
+    strengths: list[str],
+    action_items: list[ActionItem],
     agent_reports: list[AgentFindingReport],
 ) -> str:
     sections = [
@@ -517,83 +648,115 @@ def _build_markdown(
         "## Verdict & Score",
         f"**Verdict:** {verdict.replace('_', ' ').title()} · **Score:** {overall_score}/100",
         "",
-        "## Detailed Findings by Agent",
+        "## Strengths",
     ]
+    sections.extend(f"- {s}" for s in strengths)
+    sections.extend(["", "## Action Items"])
+    for priority, label in (
+        ("must_fix", "Must fix"),
+        ("should_fix", "Should fix"),
+        ("nice_to_have", "Nice to have"),
+    ):
+        group = [item for item in action_items if item.priority == priority]
+        if not group:
+            continue
+        sections.append(f"\n### {label}")
+        for item in group:
+            sections.append(f"- **{item.category}:** {item.action} — _{item.rationale}_")
+    sections.extend(["", "## Detailed Findings by Agent"])
     for report in agent_reports:
-        sections.extend(
-            [
-                "",
-                f"### {report.agent_name} ({report.score}/100)",
-                report.summary,
-            ]
-        )
-        for finding in report.findings[:3]:
-            sections.append(f"- **{finding.title}** ({finding.severity.value}): {finding.description}")
-    sections.extend(
-        [
-            "",
-            "---",
-            "*Demo mode report — scores are derived from code heuristics. "
-            "Enable live Gemini/ADK for full LLM analysis.*",
-        ]
-    )
+        sections.extend(["", f"### {report.agent_name} ({report.score}/100)", report.summary])
+        if not report.findings:
+            sections.append("- No issues flagged.")
+            continue
+        for finding in report.findings:
+            sections.append(
+                f"- **{finding.title}** ({finding.severity.value}): {finding.description} "
+                f"**Fix:** {finding.recommendation}"
+            )
     return "\n".join(sections)
 
 
-def _headline_from_reports(agent_reports: list[AgentFindingReport], language: str, context: str) -> str:
+def _executive_summary(
+    agent_reports: list[AgentFindingReport],
+    language: str,
+    context: str,
+    overall_score: int,
+    verdict: str,
+) -> str:
+    issue_count = sum(len(r.findings) for r in agent_reports)
     critical = [
-        finding.title
-        for report in agent_reports
-        for finding in report.findings
-        if finding.severity == Severity.CRITICAL
+        f
+        for r in agent_reports
+        for f in r.findings
+        if f.severity == Severity.CRITICAL
     ]
-    if critical:
-        lead = critical[0]
-        return f"{language.title()} review flagged {lead.lower()} as the top priority."
-    if context:
+    highs = [f for r in agent_reports for f in r.findings if f.severity == Severity.HIGH]
+
+    topic = ""
+    if context and "—" in context:
         topic = context.split("—", 1)[-1].strip().rstrip(".")
-        return f"{language.title()} review for {topic.lower()} completed."
-    return f"{language.title()} review completed with mixed findings across agents."
+    elif context:
+        topic = context.replace("Demo:", "").strip().rstrip(".")
+
+    if critical:
+        lead = critical[0].title.lower()
+        opener = (
+            f"This {language} submission has {len(critical)} critical issue(s), "
+            f"led by {lead}. Score: {overall_score}/100 ({verdict.replace('_', ' ')})."
+        )
+    elif highs:
+        opener = (
+            f"This {language} code is workable but has {len(highs)} high-severity issue(s) "
+            f"to address before merge. Score: {overall_score}/100."
+        )
+    elif overall_score >= 75:
+        opener = (
+            f"This {language} snippet looks solid overall ({overall_score}/100). "
+            f"Only {issue_count} minor follow-up(s) were noted."
+        )
+    else:
+        opener = (
+            f"This {language} review found {issue_count} issue(s) across five dimensions. "
+            f"Score: {overall_score}/100."
+        )
+
+    if topic:
+        opener += f" Reviewed as: {topic}."
+    return opener
 
 
 def demo_review_report(code: str, language: str, context: str) -> ReviewReport:
     """Build a demo review with scores that reflect the submitted code."""
     agent_reports = [
-        _build_agent_report("Security Agent", _detect_security_findings(code, language)),
-        _build_agent_report("Correctness Agent", _detect_correctness_findings(code, language)),
-        _build_agent_report("Readability Agent", _detect_readability_findings(code, language)),
-        _build_agent_report("Performance Agent", _detect_performance_findings(code, language)),
-        _build_agent_report("Test Coverage Agent", _detect_test_findings(code, language)),
+        _build_agent_report("Security Agent", _detect_security_findings(code, language), code, language),
+        _build_agent_report("Correctness Agent", _detect_correctness_findings(code, language), code, language),
+        _build_agent_report("Readability Agent", _detect_readability_findings(code, language), code, language),
+        _build_agent_report("Performance Agent", _detect_performance_findings(code, language), code, language),
+        _build_agent_report("Test Coverage Agent", _detect_test_findings(code, language), code, language),
     ]
     overall_score = compute_weighted_overall_score(agent_reports)
     verdict = _verdict_for_score(overall_score)
-    issue_count = sum(len(r.findings) for r in agent_reports)
-    executive_summary = (
-        f"{_headline_from_reports(agent_reports, language, context)} "
-        f"Detected {issue_count} issue(s) across five review dimensions. "
+    strengths = _build_strengths(code, language, agent_reports)
+    action_items = _build_action_items(agent_reports)
+    executive_summary = _executive_summary(
+        agent_reports, language, context, overall_score, verdict
     )
-    if overall_score >= 70:
-        executive_summary += "The code looks reasonable for a quick review with minor follow-ups."
-    elif overall_score >= 45:
-        executive_summary += "Several issues should be addressed before merging."
-    else:
-        executive_summary += "Critical security or correctness problems make this unsafe to ship as-is."
-
-    if context:
-        executive_summary += f" Context: {context.strip()}."
 
     return ReviewReport(
         overall_score=overall_score,
         verdict=verdict,
         executive_summary=executive_summary,
-        strengths=_build_strengths(code, language, agent_reports),
-        action_items=_build_action_items(agent_reports),
+        strengths=strengths,
+        action_items=action_items,
         agent_reports=agent_reports,
         markdown_report=_build_markdown(
             language,
             overall_score,
             verdict,
             executive_summary,
+            strengths,
+            action_items,
             agent_reports,
         ),
     )

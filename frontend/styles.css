@@ -440,6 +440,24 @@ input[type="text"] {
 #executive-summary {
   font-size: 0.9rem;
   color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.strengths-list {
+  margin-top: 0.75rem;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: var(--green);
+}
+
+.strengths-list li {
+  margin-bottom: 0.25rem;
+}
+
+.findings-empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
 }
 
 .agent-grid {

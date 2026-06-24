@@ -1117,6 +1117,9 @@ function clearResults() {
   document.getElementById("overall-score").textContent = "—";
   document.getElementById("verdict-badge").textContent = "—";
   document.getElementById("executive-summary").textContent = "Waiting for coordinator…";
+  const strengthsEl = document.getElementById("strengths-list");
+  strengthsEl.innerHTML = "";
+  strengthsEl.classList.add("hidden");
   document.getElementById("findings-list").innerHTML = "";
   document.getElementById("action-list").innerHTML = "";
   document.getElementById("markdown-report").innerHTML = "";
@@ -1192,6 +1195,16 @@ function renderResults(wrapper) {
   badge.textContent = formatVerdict(data.verdict);
   badge.className = `verdict-badge verdict-${data.verdict}`;
   document.getElementById("executive-summary").textContent = data.executive_summary;
+
+  const strengthsEl = document.getElementById("strengths-list");
+  const strengths = data.strengths || [];
+  if (strengths.length) {
+    strengthsEl.innerHTML = strengths.map((s) => `<li>${escapeHtml(s)}</li>`).join("");
+    strengthsEl.classList.remove("hidden");
+  } else {
+    strengthsEl.innerHTML = "";
+    strengthsEl.classList.add("hidden");
+  }
 
   if (meta) {
     document.getElementById("meta-bar").classList.remove("hidden");

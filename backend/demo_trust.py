@@ -1,5 +1,7 @@
 """Offline demo trust analysis when API quota is unavailable."""
 
+import re
+
 from backend.confidence import apply_confidence
 from backend.trust_weights import compute_overall_score
 from backend.claim_matcher import build_support_summary
@@ -28,6 +30,34 @@ def _demo_sources(urls: list[str]) -> list[CheckedSource]:
     return sources
 
 
+def _extract_claims_from_text(text: str, urls: list[str]) -> list[str]:
+    sentences = [
+        s.strip()
+        for s in re.split(r"(?<=[.!?])\s+", text.strip())
+        if len(s.split()) >= 6
+    ]
+    if not sentences:
+        return [text.strip()[:240]] if text.strip() else []
+    return sentences[:4]
+
+
+def _support_for_claim(sentence: str, has_urls: bool) -> tuple[str, str, str]:
+    lower = sentence.lower()
+    hedged = any(word in lower for word in ("may", "might", "could", "some", "generally", "often"))
+    numeric = bool(re.search(r"\d", sentence))
+    if not has_urls:
+        return "unclear", "source_unavailable", "No citations were provided to verify this statement."
+    if hedged:
+        return "weakly_supported", "weakly_supported", (
+            "Wording is cautious, but cited sources were not fully matched to this exact claim in demo mode."
+        )
+    if numeric:
+        return "weakly_supported", "weakly_supported", (
+            "Contains specific figures — verify against the cited source's original data."
+        )
+    return "supported", "supported", "Demo mode: claim appears consistent with the type of sources cited."
+
+
 def demo_trust_report(
     text: str,
     urls: list[str] | None = None,
@@ -37,37 +67,23 @@ def demo_trust_report(
     urls = urls or []
     sources = _demo_sources(urls) if urls else []
     has_urls = len(sources) > 0
-    word_count = len(text.split())
     source_summary = build_source_summary(sources) if sources else None
     matched_url = urls[0] if urls else None
+    claim_texts = _extract_claims_from_text(text, urls)
 
-    claims = [
-        apply_confidence(
-            ClaimAnalysis(
-                text="The response presents factual statements that could be verified with external sources.",
-                status="weakly_supported" if has_urls else "unclear",
-                citations=urls[:1],
-                note="Preliminary demo analysis — full source verification not performed.",
-                matched_source=matched_url,
-                support_label="weakly_supported" if has_urls else "source_unavailable",
-                evidence_note=(
-                    "Demo mode: source appears related, but live claim-to-source matching was not performed."
-                    if has_urls
-                    else "No usable source content was available for this claim."
-                ),
-            )
-        ),
-    ]
-    if word_count > 80:
+    claims = []
+    for idx, claim_text in enumerate(claim_texts):
+        status, label, evidence = _support_for_claim(claim_text, has_urls)
         claims.append(
             apply_confidence(
                 ClaimAnalysis(
-                    text="Some statements may require freshness verification depending on the topic.",
-                    status="unclear",
-                    citations=[],
-                    matched_source=None,
-                    support_label="unclear",
-                    evidence_note="Time-sensitive topics benefit from checking publication dates.",
+                    text=claim_text,
+                    status=status,
+                    citations=urls[idx : idx + 1] if urls else [],
+                    note=evidence,
+                    matched_source=urls[idx] if idx < len(urls) else matched_url,
+                    support_label=label,
+                    evidence_note=evidence,
                 )
             )
         )
@@ -116,6 +132,10 @@ def demo_trust_report(
         claims=claims,
         sources=sources,
         source_summary=source_summary,
-        headline="Preliminary credibility signal — some claims need stronger support",
+        headline=(
+            "Most claims look plausible, but verify citations before trusting this answer."
+            if has_urls
+            else "No sources cited — treat factual statements as unverified."
+        ),
         support_summary=build_support_summary(claims),
     )
