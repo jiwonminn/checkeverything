@@ -165,6 +165,39 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
+const URL_IN_TEXT = /https?:\/\/[^\s<>"')\]]+/gi;
+const SKIP_URL_HOSTS = new Set(["chatgpt.com", "chat.openai.com", "openai.com", "localhost"]);
+
+function findConversationTurn(element) {
+  return element.closest('[data-testid^="conversation-turn"]') || element.closest("article") || element;
+}
+
+function findAssistantAttachTarget(messageEl) {
+  const turn = messageEl.closest('[data-testid^="conversation-turn"]');
+  if (turn && turn.querySelector('[data-message-author-role="assistant"]')) {
+    return turn;
+  }
+  return messageEl;
+}
+
+function shouldIncludeUrl(url) {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return !SKIP_URL_HOSTS.has(host);
+  } catch {
+    return false;
+  }
+}
+
+function extractUrlsFromText(text) {
+  const urls = [];
+  for (const match of text.matchAll(URL_IN_TEXT)) {
+    const url = match[0].replace(/[.,;:]+$/, "");
+    if (url && shouldIncludeUrl(url) && !urls.includes(url)) urls.push(url);
+  }
+  return urls;
+}
+
 function normalizeUrl(href) {
   try {
     const url = new URL(href, location.origin);
@@ -182,17 +215,85 @@ function normalizeUrl(href) {
 
 function extractUrls(element) {
   const urls = [];
-  element.querySelectorAll("a[href]").forEach((anchor) => {
-    const normalized = normalizeUrl(anchor.href);
-    if (normalized && !urls.includes(normalized)) urls.push(normalized);
+  const addUrl = (href) => {
+    const normalized = normalizeUrl(href);
+    if (normalized && shouldIncludeUrl(normalized) && !urls.includes(normalized)) {
+      urls.push(normalized);
+    }
+  };
+
+  const roots = new Set([element, findConversationTurn(element)]);
+  for (const root of roots) {
+    root.querySelectorAll("a[href]").forEach((anchor) => addUrl(anchor.href));
+    root
+      .querySelectorAll(
+        '[data-testid*="source"] a[href], [class*="citation"] a[href], [class*="footnote"] a[href]'
+      )
+      .forEach((anchor) => addUrl(anchor.href));
+  }
+
+  const text = extractMessageContent(element);
+  extractUrlsFromText(text).forEach((url) => {
+    if (!urls.includes(url)) urls.push(url);
   });
   return urls;
 }
 
 function extractContainerText(element) {
   const clone = element.cloneNode(true);
-  clone.querySelectorAll(`.${WRAP_CLASS}, .checkeverything-panel`).forEach((node) => node.remove());
-  return clone.textContent?.replace(/\s+/g, " ").trim() || "";
+  clone
+    .querySelectorAll(`.${WRAP_CLASS}, .checkeverything-panel, button, [role="button"], nav`)
+    .forEach((node) => node.remove());
+  const inner = clone.innerText?.replace(/\s+/g, " ").trim() || "";
+  const text = clone.textContent?.replace(/\s+/g, " ").trim() || "";
+  return inner.length >= text.length ? inner : text;
+}
+
+function extractMessageContent(element) {
+  const contentSelectors = [
+    '[class*="markdown"]',
+    '[class*="prose"]',
+    ".prose",
+    ".whitespace-pre-wrap",
+    '[class*="agent-turn"]',
+    '[data-message-author-role="assistant"]',
+    '[data-testid^="conversation-turn"]',
+  ];
+  let best = "";
+  for (const selector of contentSelectors) {
+    for (const node of element.querySelectorAll(selector)) {
+      const text = extractContainerText(node);
+      if (text.length > best.length) best = text;
+    }
+  }
+  const fallback = extractContainerText(element);
+  return best.length >= fallback.length ? best : fallback;
+}
+
+function extractChatGPTText(rootEl) {
+  const turn = findConversationTurn(rootEl);
+  const scopes = new Set([rootEl, turn]);
+  const assistantMarker = rootEl.matches('[data-message-author-role="assistant"]')
+    ? rootEl
+    : turn.querySelector('[data-message-author-role="assistant"]');
+  if (assistantMarker?.nextElementSibling) scopes.add(assistantMarker.nextElementSibling);
+  if (assistantMarker?.parentElement) scopes.add(assistantMarker.parentElement);
+
+  let best = "";
+  for (const scope of scopes) {
+    const text = extractMessageContent(scope);
+    if (text.length > best.length) best = text;
+  }
+  return best;
+}
+
+function extractChatGPTUrls(rootEl) {
+  const turn = findConversationTurn(rootEl);
+  const urls = extractUrls(rootEl);
+  for (const url of extractUrls(turn)) {
+    if (!urls.includes(url)) urls.push(url);
+  }
+  return urls;
 }
 
 function extractCodeBlocks(element) {
@@ -216,8 +317,8 @@ function detectChatGPTMode(messageEl) {
   }
   return {
     mode: "trust",
-    text: extractContainerText(messageEl),
-    urls: extractUrls(messageEl),
+    text: extractChatGPTText(messageEl),
+    urls: extractChatGPTUrls(messageEl),
     source: "chatgpt",
   };
 }
@@ -472,6 +573,20 @@ function buildAnalyzePayload(detected) {
   };
 }
 
+function resolveDetection(targetEl) {
+  if (platform === "google_ai_overview") {
+    return detectGoogleOverviewMode(targetEl);
+  }
+  return detectChatGPTMode(targetEl);
+}
+
+function hasAnalyzableContent(detected) {
+  if (detected.mode === "code") {
+    return Boolean(detected.code && detected.code.length >= 20);
+  }
+  return Boolean(detected.text && detected.text.length >= 20);
+}
+
 function attachBadge(targetEl, detected) {
   if (targetEl.querySelector(`.${WRAP_CLASS}`) || targetEl.hasAttribute(ATTACHED_ATTR)) {
     return;
@@ -497,9 +612,16 @@ function attachBadge(targetEl, detected) {
       return;
     }
 
-    if (!detected.text || detected.text.length < 20) {
+    const detected = resolveDetection(targetEl);
+    const activeCopy =
+      detected.mode === "code" ? MODE_COPY.code : getTrustCopy(detected.source || trustPlatform);
+
+    if (!hasAnalyzableContent(detected)) {
       badge.textContent = "⚠️ No content";
-      badge.title = "Could not extract enough AI Overview text to analyze.";
+      badge.title =
+        platform === "google_ai_overview"
+          ? "Could not extract enough AI Overview text. Wait for the overview to load, then click again."
+          : "Could not extract enough response text. Wait for ChatGPT to finish, then click again.";
       return;
     }
 
@@ -522,7 +644,7 @@ function attachBadge(targetEl, detected) {
       lastResult = response.data;
       const score = getScoreFromResult(lastResult);
       badge.textContent = `🛡️ Trust Score: ${score}%`;
-      badge.title = copy.disclaimer;
+      badge.title = activeCopy.disclaimer;
       detailsBtn.hidden = false;
       showPanel(wrap, lastResult);
     });
@@ -536,9 +658,20 @@ function scanChatGPTMessages() {
       .forEach((messageEl) => attachBadge(messageEl, detectChatGPTMode(messageEl)));
     return;
   }
-  document
-    .querySelectorAll('[data-message-author-role="assistant"]')
-    .forEach((messageEl) => attachBadge(messageEl, detectChatGPTMode(messageEl)));
+
+  const turns = document.querySelectorAll('[data-testid^="conversation-turn"]');
+  if (turns.length) {
+    turns.forEach((turn) => {
+      if (!turn.querySelector('[data-message-author-role="assistant"]')) return;
+      attachBadge(turn, detectChatGPTMode(turn));
+    });
+    return;
+  }
+
+  document.querySelectorAll('[data-message-author-role="assistant"]').forEach((messageEl) => {
+    const target = findAssistantAttachTarget(messageEl);
+    attachBadge(target, detectChatGPTMode(target));
+  });
 }
 
 function scanGoogleAiOverviews() {

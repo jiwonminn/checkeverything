@@ -9,7 +9,7 @@
 <body class="demo-hub">
   <header class="demo-header">
     <h1>CheckEverything Screenshot Demo</h1>
-    <p>Local testing pages for capturing README demo assets. Uses <strong>DEMO_MODE</strong> — no live API calls required.</p>
+    <p>Local mock pages for capturing README demo assets. Pages load here; point the extension at your <strong>Cloud Run</strong> API for live trust analysis.</p>
   </header>
 
   <section class="demo-card">
@@ -17,7 +17,7 @@
     <ol>
       <li>Run <code>./scripts/demo-screenshots.sh</code></li>
       <li>Reload the extension in <code>chrome://extensions</code></li>
-      <li>Set extension API URL to <code id="apiUrl">http://localhost:8080</code></li>
+      <li>Set extension API URL to <code id="apiUrl">https://checkeverything-jgaheeinfq-pd.a.run.app</code> (Cloud Run — not localhost)</li>
     </ol>
   </section>
 
@@ -51,9 +51,5 @@ git add docs/demo/*.png
 git commit -m "docs: add demo screenshots"
 git push</pre>
   </section>
-
-  <script>
-    document.getElementById("apiUrl").textContent = location.origin;
-  </script>
 </body>
 </html>
