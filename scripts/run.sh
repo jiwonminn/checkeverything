@@ -32,7 +32,11 @@ pick_port() {
 
 PORT="${PORT:-$(pick_port 8080)}"
 echo "→ Starting checkeverything at http://localhost:${PORT}"
-echo "  Google ADK multi-agent pipeline enabled (USE_ADK=true)"
+if [[ "${DEMO_MODE:-}" == "true" ]]; then
+  echo "  DEMO_MODE=true — offline demo responses (no API keys required)"
+else
+  echo "  Google ADK multi-agent pipeline enabled (USE_ADK=${USE_ADK:-true})"
+fi
 echo "  Set RELOAD=true for development auto-reload"
 echo "  Press Ctrl+C to stop"
 

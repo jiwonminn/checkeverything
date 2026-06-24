@@ -24,4 +24,7 @@ else
 fi
 
 echo ""
-echo "✓ Setup complete. Run: ./scripts/run.sh"
+echo "✓ Setup complete."
+echo "  Local testing:  ./scripts/dev.sh"
+echo "  Run tests:      ./scripts/test.sh"
+echo "  Live API mode:  copy .env.example → .env and set GEMINI_API_KEY or Vertex credentials"

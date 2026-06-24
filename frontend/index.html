@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>checkeverything — Multi-Agent Code Review</title>
+  <title>CheckEverything — AI Trust & Code Review</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/styles.css?v=11" />
 </head>
 <body>
   <header class="header">
@@ -15,17 +15,9 @@
       <div class="brand">
         <span class="brand-icon">🛡️</span>
         <div>
-          <h1>checkeverything</h1>
-          <p class="tagline">5-agent code review · Google ADK + Gemini</p>
+          <h1>CheckEverything</h1>
+          <p class="tagline">AI trust scoring · code review · Google Gemini</p>
         </div>
-      </div>
-      <div class="agents-pill">
-        <span>Security</span>
-        <span>Correctness</span>
-        <span>Readability</span>
-        <span>Performance</span>
-        <span>Tests</span>
-        <span class="coordinator">→ Coordinator</span>
       </div>
     </div>
   </header>
@@ -37,6 +29,7 @@
         <div class="submission-tabs">
           <button type="button" class="sub-tab active" data-mode="code">Code</button>
           <button type="button" class="sub-tab" data-mode="diff">PR Diff</button>
+          <button type="button" class="sub-tab" data-mode="trust">AI Answer</button>
         </div>
       </div>
 
@@ -72,13 +65,63 @@
         <p id="diff-summary" class="diff-summary hidden"></p>
       </div>
 
-      <div class="meta-row">
+      <div id="mode-trust" class="mode-panel">
+        <div class="panel-header">
+          <div class="controls">
+            <button type="button" id="load-trust-sample" class="btn-secondary">Load sample</button>
+          </div>
+        </div>
+        <textarea id="ai-text" placeholder="Paste an AI-generated answer from ChatGPT, Gemini, or any assistant..." spellcheck="false"></textarea>
+        <label class="context-label urls-label">
+          Cited URLs <span class="optional">(optional, one per line)</span>
+          <textarea id="ai-urls" class="urls-input" rows="3" placeholder="https://example.com/study&#10;https://who.int/factsheet"></textarea>
+        </label>
+      </div>
+
+      <div class="meta-row" id="context-row">
         <label class="context-label">
           Context <span class="optional">(optional)</span>
           <input id="context" type="text" placeholder="e.g. PR #42 — auth module refactor" />
         </label>
         <span id="char-count" class="char-count">0 chars</span>
       </div>
+
+      <details class="weights-panel" id="weights-panel">
+        <summary>
+          Agent score weights
+          <span id="weight-total" class="weight-total">100%</span>
+        </summary>
+        <p class="weights-hint">Set how much each agent contributes to the overall score. Values are normalized to 100%.</p>
+        <div class="weight-grid">
+          <label class="weight-field">
+            <span>Security</span>
+            <input type="number" id="w-security" min="0" max="100" value="20" />
+            <span class="weight-suffix">%</span>
+          </label>
+          <label class="weight-field">
+            <span>Correctness</span>
+            <input type="number" id="w-correctness" min="0" max="100" value="25" />
+            <span class="weight-suffix">%</span>
+          </label>
+          <label class="weight-field">
+            <span>Readability</span>
+            <input type="number" id="w-readability" min="0" max="100" value="15" />
+            <span class="weight-suffix">%</span>
+          </label>
+          <label class="weight-field">
+            <span>Performance</span>
+            <input type="number" id="w-performance" min="0" max="100" value="15" />
+            <span class="weight-suffix">%</span>
+          </label>
+          <label class="weight-field">
+            <span>Tests</span>
+            <input type="number" id="w-test_coverage" min="0" max="100" value="25" />
+            <span class="weight-suffix">%</span>
+          </label>
+        </div>
+        <button type="button" id="reset-weights" class="btn-secondary btn-small">Reset defaults</button>
+      </details>
+
       <button type="button" id="submit" class="btn-primary">
         <span class="btn-text">Run 5-Agent Review</span>
         <span class="btn-spinner hidden" aria-hidden="true"></span>
@@ -87,8 +130,80 @@
       <p id="error" class="error hidden" role="alert"></p>
     </section>
 
-    <section class="output-panel hidden" id="results">
-      <div class="meta-bar hidden" id="meta-bar">
+    <section class="output-panel" id="output-panel">
+      <div id="intro-state" class="intro-state">
+        <div id="intro-code" class="intro-mode">
+          <div class="intro-hero">
+            <div class="intro-icon">⚙️</div>
+            <div>
+              <h2>5-agent code review</h2>
+              <p id="intro-status" class="intro-status">Paste code or a PR diff on the left to get started.</p>
+            </div>
+          </div>
+
+          <p class="intro-lead">
+            Five specialist agents review your submission in parallel. A coordinator synthesizes
+            scores, findings, and prioritized action items.
+          </p>
+
+          <ul class="agent-roster" id="agent-roster">
+            <li><strong>Security</strong> — secrets, injection, unsafe patterns</li>
+            <li><strong>Correctness</strong> — logic bugs and edge cases</li>
+            <li><strong>Readability</strong> — naming, structure, clarity</li>
+            <li><strong>Performance</strong> — inefficiencies and bottlenecks</li>
+            <li><strong>Tests</strong> — coverage gaps and testability</li>
+          </ul>
+
+          <ol class="intro-steps" id="intro-steps">
+            <li id="step-load">Click <strong>Load sample</strong></li>
+            <li id="step-run">Press <strong>Run 5-Agent Review</strong></li>
+            <li id="step-see">Review scores and findings here</li>
+            <li id="step-weights">Adjust <strong>Agent score weights</strong> if you want (Security defaults to 20%)</li>
+          </ol>
+        </div>
+
+        <div id="intro-trust" class="intro-mode hidden">
+          <div class="intro-hero">
+            <div class="intro-icon">🛡️</div>
+            <div>
+              <h2>AI answer trust check</h2>
+              <p id="intro-trust-status" class="intro-status">Paste an AI answer on the left to check its claims.</p>
+            </div>
+          </div>
+
+          <p class="intro-lead">
+            Checks whether claims are supported by cited sources, evaluates source quality,
+            and flags weak or unsupported statements — the same analysis as the Chrome extension.
+          </p>
+
+          <ul class="agent-roster">
+            <li><strong>Claim support</strong> — are statements backed by evidence?</li>
+            <li><strong>Source quality</strong> — are citations from reliable domains?</li>
+            <li><strong>Citation accuracy</strong> — do sources actually say what the AI claims?</li>
+            <li><strong>Freshness</strong> — could the information be outdated?</li>
+            <li><strong>Bias / context</strong> — is anything one-sided or missing?</li>
+          </ul>
+
+          <ol class="intro-steps" id="intro-trust-steps">
+            <li id="trust-step-load">Click <strong>Load sample</strong></li>
+            <li id="trust-step-run">Press <strong>Check Trust Score</strong></li>
+            <li id="trust-step-see">See score, claims, and source checks here</li>
+          </ol>
+        </div>
+
+        <details class="intro-extra">
+          <summary>Prefer in-browser checking?</summary>
+          <p>
+            Install the Chrome extension to overlay a Trust Score badge directly on
+            <strong>ChatGPT</strong> and <strong>Google AI Overview</strong> — no copy-pasting needed.
+            See <code>extension/</code> in the repo.
+          </p>
+        </details>
+      </div>
+
+      <div id="results-state" class="results-state hidden">
+        <div id="results-code-view">
+        <div class="meta-bar hidden" id="meta-bar">
         <span id="pipeline-badge" class="pipeline-badge"></span>
         <span id="duration-badge" class="duration-badge"></span>
       </div>
@@ -126,13 +241,51 @@
           <pre id="json-output"><code></code></pre>
         </div>
       </div>
+        </div>
+
+        <div id="results-trust-view" class="hidden">
+          <div class="score-card">
+            <div class="score-ring">
+              <span id="trust-overall-score">—</span>
+              <small>/ 100</small>
+            </div>
+            <div class="verdict-block">
+              <span class="verdict-badge verdict-approve">Trust Score</span>
+              <p id="trust-headline"></p>
+              <p id="trust-summary" class="trust-summary-text"></p>
+            </div>
+          </div>
+
+          <div class="category-grid" id="category-grid"></div>
+
+          <div class="tabs">
+            <button class="tab active" data-trust-tab="claims">Claims</button>
+            <button class="tab" data-trust-tab="sources">Sources</button>
+            <button class="tab" data-trust-tab="json">JSON</button>
+          </div>
+          <div class="tab-panels">
+            <div id="trust-tab-claims" class="tab-panel active">
+              <ul id="claims-list" class="claims-list"></ul>
+            </div>
+            <div id="trust-tab-sources" class="tab-panel">
+              <ul id="sources-list" class="sources-list"></ul>
+            </div>
+            <div id="trust-tab-json" class="tab-panel">
+              <pre id="trust-json-output"><code></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 
   <footer class="footer">
-    <p>GDG York · Google ADK · Gemini · Vertex AI · Chrome Extension in <code>extension/</code></p>
+    <p>
+      Solo project by <strong>Jiwon Min</strong> · York University ·
+      Chrome extension in <code>extension/</code>
+    </p>
   </footer>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=11"></script>
 </body>
 </html>

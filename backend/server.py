@@ -5,7 +5,8 @@ import json
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,8 +15,11 @@ from pydantic import BaseModel, Field, model_validator
 from backend.analyze import analyze_response
 from backend.diff_parser import infer_language_from_diff, parse_unified_diff
 from backend.gemini_client import get_model, use_vertex_ai
+from backend.models import ReviewWeights
 from backend.orchestrator import review_code, review_code_stream
 from backend.trust_models import AnalyzeRequest
+
+load_dotenv()
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "frontend"
 DEMO_DIR = STATIC_DIR / "demo"
@@ -33,6 +37,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+NO_CACHE = "no-cache, no-store, must-revalidate"
+
+
+@app.middleware("http")
+async def disable_frontend_cache(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = NO_CACHE
+    return response
+
 
 class ReviewRequest(BaseModel):
     code: str = Field(default="", description="Raw code submission")
@@ -40,6 +54,7 @@ class ReviewRequest(BaseModel):
     submission_type: Literal["code", "diff"] = Field(default="code")
     language: str = Field(default="python")
     context: str = Field(default="")
+    weights: ReviewWeights | None = None
 
     @model_validator(mode="after")
     def validate_input(self):
@@ -91,7 +106,7 @@ async def index():
     index_path = STATIC_DIR / "index.html"
     if not index_path.exists():
         raise HTTPException(status_code=404, detail="Frontend not found")
-    return FileResponse(index_path)
+    return FileResponse(index_path, headers={"Cache-Control": NO_CACHE})
 
 
 @app.get("/health")
@@ -131,12 +146,12 @@ async def parse_diff(request: ParseDiffRequest):
 
 def _run_review(request: ReviewRequest):
     code, language, context = request.resolve()
-    return review_code(code=code, language=language, context=context)
+    return review_code(code=code, language=language, context=context, weights=request.weights)
 
 
 def _stream_review(request: ReviewRequest):
     code, language, context = request.resolve()
-    return review_code_stream(code=code, language=language, context=context)
+    return review_code_stream(code=code, language=language, context=context, weights=request.weights)
 
 
 @app.post("/api/review")

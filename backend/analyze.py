@@ -2,9 +2,9 @@
 
 import os
 
-from google.genai import errors as genai_errors
 from google.genai import types
 
+from backend.api_errors import is_recoverable_api_error
 from backend.confidence import apply_confidence
 from backend.demo_trust import demo_trust_report
 from backend.demo_trust_screenshot import demo_trust_screenshot_report
@@ -31,22 +31,6 @@ from backend.trust_prompts import MAX_ANALYZE_CHARS, TRUST_ANALYSIS_INSTRUCTION
 
 def _demo_mode_enabled() -> bool:
     return os.getenv("DEMO_MODE", "").lower() in ("1", "true", "yes")
-
-
-def _is_recoverable_api_error(exc: Exception) -> bool:
-    if isinstance(exc, genai_errors.APIError):
-        msg = str(exc)
-        return (
-            "429" in msg
-            or "503" in msg
-            or "RESOURCE_EXHAUSTED" in msg
-            or "UNAVAILABLE" in msg
-            or "NOT_FOUND" in msg
-        )
-    if isinstance(exc, RuntimeError):
-        msg = str(exc)
-        return "GEMINI_API_KEY" in msg or "GOOGLE_CLOUD_PROJECT" in msg
-    return False
 
 
 def _validate_request(request: AnalyzeRequest) -> None:
@@ -244,7 +228,7 @@ def analyze_response(request: AnalyzeRequest) -> AnalyzeResponse:
     try:
         return _analyze_with_gemini(request, sources)
     except Exception as exc:
-        if _is_recoverable_api_error(exc):
+        if is_recoverable_api_error(exc):
             if _is_screenshot_demo_request(request):
                 return demo_trust_screenshot_report(urls, weights=active_weights)
             return demo_trust_report(request.text, urls, weights=active_weights)

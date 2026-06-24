@@ -6,16 +6,16 @@ from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
-from google.genai import errors as genai_errors
-
+from backend.api_errors import is_recoverable_api_error
 from backend.adk_runner import review_code_with_adk
 from backend.agent_registry import AGENT_RUNNERS
 from backend.agents import get_model_name
 from backend.coordinator import run_coordinator
 from backend.demo_report import demo_review_report
 from backend.gemini_client import use_vertex_ai
-from backend.models import AgentFindingReport, PipelineType, ReviewReport, ReviewResponse
+from backend.models import AgentFindingReport, PipelineType, ReviewReport, ReviewResponse, ReviewWeights
 from backend.prompts import AGENT_ORDER
+from backend.review_weights import apply_review_weights
 from backend.validation import validate_submission
 
 MAX_PARALLEL_AGENTS = 5
@@ -70,14 +70,27 @@ def _normalize_review_report(report: ReviewReport) -> ReviewReport:
     return report.model_copy(update={"agent_reports": _sort_reports(report.agent_reports)})
 
 
-def _wrap(report: ReviewReport, pipeline: PipelineType, started: float) -> ReviewResponse:
+def _wrap(
+    report: ReviewReport,
+    pipeline: PipelineType,
+    started: float,
+    weights: ReviewWeights | None = None,
+) -> ReviewResponse:
+    weighted_report, score_weights = apply_review_weights(report, weights)
     return ReviewResponse(
-        report=_normalize_review_report(report),
+        report=_normalize_review_report(weighted_report),
         pipeline=pipeline,
         model=get_model_name(),
         duration_ms=int((time.perf_counter() - started) * 1000),
         google_technologies=_google_technologies(pipeline),
+        score_weights=score_weights,
     )
+
+
+def _demo_fallback_report(code: str, language: str, context: str, note: str) -> ReviewReport:
+    report = demo_review_report(code, language, context)
+    report.executive_summary += note
+    return report
 
 
 def _run_agents_parallel(code: str, language: str, context: str) -> list[AgentFindingReport]:
@@ -87,47 +100,6 @@ def _run_agents_parallel(code: str, language: str, context: str) -> list[AgentFi
         for future in as_completed(futures):
             reports.append(future.result())
     return _sort_reports(reports)
-
-
-def _is_recoverable_api_error(exc: Exception) -> bool:
-    if isinstance(exc, genai_errors.APIError):
-        msg = str(exc)
-        return (
-            "429" in msg
-            or "503" in msg
-            or "RESOURCE_EXHAUSTED" in msg
-            or "UNAVAILABLE" in msg
-            or "API_KEY_INVALID" in msg
-        )
-    for current in _exception_chain(exc):
-        module = type(current).__module__
-        name = type(current).__name__
-        msg = str(current)
-        if module.startswith(("httpx", "httpcore")) and name in (
-            "ConnectError",
-            "ConnectTimeout",
-            "ReadTimeout",
-            "RemoteProtocolError",
-            "NetworkError",
-            "TransportError",
-        ):
-            return True
-        if isinstance(current, RuntimeError) and (
-            "GEMINI_API_KEY is not set" in msg
-            or "ADK pipeline finished without a coordinator report" in msg
-            or "503 UNAVAILABLE" in msg
-            or "RESOURCE_EXHAUSTED" in msg
-        ):
-            return True
-    return False
-
-
-def _is_quota_or_availability_error(exc: Exception) -> bool:
-    return any(
-        token in str(current)
-        for current in _exception_chain(exc)
-        for token in ("429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE")
-    )
 
 
 def _exception_chain(exc: Exception) -> Iterator[BaseException]:
@@ -143,38 +115,39 @@ def _exception_chain(exc: Exception) -> Iterator[BaseException]:
         current = current.__cause__ or current.__context__
 
 
-def review_code(code: str, language: str = "python", context: str = "") -> ReviewResponse:
+def review_code(
+    code: str,
+    language: str = "python",
+    context: str = "",
+    weights: ReviewWeights | None = None,
+) -> ReviewResponse:
     validate_submission(code, language)
     started = time.perf_counter()
 
     if _demo_mode_enabled():
-        return _wrap(demo_review_report(code, language, context), "demo", started)
+        return _wrap(demo_review_report(code, language, context), "demo", started, weights)
 
     if _use_adk():
         try:
             report = review_code_with_adk(code, language, context)
-            return _wrap(report, "adk", started)
+            return _wrap(report, "adk", started, weights)
         except Exception as exc:
-            if not _is_recoverable_api_error(exc):
+            if not is_recoverable_api_error(exc):
                 raise
-            if _is_quota_or_availability_error(exc):
-                report = demo_review_report(code, language, context)
-                report.executive_summary += (
-                    " (Live ADK/Gemini unavailable — demo report shown. Check API quota.)"
-                )
-                return _wrap(report, "demo", started)
 
     try:
         reports = _run_agents_parallel(code, language, context)
         report = run_coordinator(code, language, context, reports)
-        return _wrap(report, "gemini", started)
+        return _wrap(report, "gemini", started, weights)
     except Exception as exc:
-        if _is_recoverable_api_error(exc):
-            report = demo_review_report(code, language, context)
-            report.executive_summary += (
-                " (Live API unavailable — demo report shown. Check API key/quota or Vertex AI.)"
+        if is_recoverable_api_error(exc):
+            report = _demo_fallback_report(
+                code,
+                language,
+                context,
+                " (Live API unavailable — demo report shown. Use ./scripts/dev.sh for local testing.)",
             )
-            return _wrap(report, "demo", started)
+            return _wrap(report, "demo", started, weights)
         raise
 
 
@@ -182,6 +155,7 @@ def review_code_stream(
     code: str,
     language: str = "python",
     context: str = "",
+    weights: ReviewWeights | None = None,
 ) -> Iterator[dict[str, Any]]:
     validate_submission(code, language)
     started = time.perf_counter()
@@ -195,7 +169,7 @@ def review_code_stream(
         for agent_report in report.agent_reports:
             yield {"type": "agent_complete", "report": agent_report.model_dump()}
         yield {"type": "coordinator_start", "message": "Coordinator synthesizing findings…"}
-        yield {"type": "complete", "data": _wrap(report, "demo", started).model_dump()}
+        yield {"type": "complete", "data": _wrap(report, "demo", started, weights).model_dump()}
         return
 
     yield {"type": "pipeline", "pipeline": "gemini"}
@@ -216,11 +190,18 @@ def review_code_stream(
 
         yield {"type": "coordinator_start", "message": "Coordinator synthesizing findings…"}
         final = run_coordinator(code, language, context, _sort_reports(completed))
-        yield {"type": "complete", "data": _wrap(final, "gemini", started).model_dump()}
+        yield {"type": "complete", "data": _wrap(final, "gemini", started, weights).model_dump()}
     except Exception as exc:
-        if _is_recoverable_api_error(exc):
-            report = demo_review_report(code, language, context)
-            yield {"type": "fallback", "message": "API quota exhausted — using demo report"}
-            yield {"type": "complete", "data": _wrap(report, "demo", started).model_dump()}
+        if is_recoverable_api_error(exc):
+            report = _demo_fallback_report(
+                code,
+                language,
+                context,
+                " (Live API unavailable — demo report shown. Use ./scripts/dev.sh for local testing.)",
+            )
+            for agent_report in report.agent_reports:
+                yield {"type": "agent_complete", "report": agent_report.model_dump()}
+            yield {"type": "fallback", "message": "Live API unavailable — using demo report"}
+            yield {"type": "complete", "data": _wrap(report, "demo", started, weights).model_dump()}
         else:
             yield {"type": "error", "message": str(exc)}

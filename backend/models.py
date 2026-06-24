@@ -50,6 +50,14 @@ class ReviewReport(BaseModel):
     markdown_report: str
 
 
+class ReviewWeights(BaseModel):
+    security: int = Field(default=20, ge=0, le=100)
+    correctness: int = Field(default=25, ge=0, le=100)
+    readability: int = Field(default=15, ge=0, le=100)
+    performance: int = Field(default=15, ge=0, le=100)
+    test_coverage: int = Field(default=25, ge=0, le=100)
+
+
 PipelineType = Literal["adk", "gemini", "demo"]
 
 
@@ -61,3 +69,7 @@ class ReviewResponse(BaseModel):
     model: str
     duration_ms: int
     google_technologies: list[str]
+    score_weights: dict[str, int] | None = Field(
+        default=None,
+        description="Normalized agent weight percentages used for overall_score",
+    )
