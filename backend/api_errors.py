@@ -17,6 +17,7 @@ RECOVERABLE_MARKERS = (
     "GOOGLE_CLOUD_PROJECT",
     "PERMISSION DENIED",
     "UNAUTHENTICATED",
+    "ADK PIPELINE FINISHED WITHOUT A COORDINATOR REPORT",
 )
 
 
@@ -30,8 +31,8 @@ def is_recoverable_api_error(exc: Exception) -> bool:
     if isinstance(exc, genai_errors.APIError):
         return _message_contains_marker(str(exc))
 
-    if isinstance(exc, RuntimeError):
-        return _message_contains_marker(str(exc))
+    if isinstance(exc, RuntimeError) and _message_contains_marker(str(exc)):
+        return True
 
     module = type(exc).__module__
     name = type(exc).__name__

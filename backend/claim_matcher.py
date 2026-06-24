@@ -4,6 +4,7 @@ from google.genai import types
 
 from backend.gemini_client import generate_with_fallback, get_client
 from backend.confidence import apply_confidence
+from backend.source_checker import parse_domain
 from backend.trust_models import (
     ClaimAnalysis,
     ClaimDraft,

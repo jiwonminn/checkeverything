@@ -19,6 +19,7 @@ from backend.review_weights import apply_review_weights
 from backend.validation import validate_submission
 
 MAX_PARALLEL_AGENTS = 5
+_is_recoverable_api_error = is_recoverable_api_error
 CANONICAL_AGENT_NAMES = {
     "security": "Security Agent",
     "security_agent": "Security Agent",

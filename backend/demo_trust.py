@@ -55,7 +55,7 @@ def _support_for_claim(sentence: str, has_urls: bool) -> tuple[str, str, str]:
         return "weakly_supported", "weakly_supported", (
             "Contains specific figures — verify against the cited source's original data."
         )
-    return "supported", "supported", "Demo mode: claim appears consistent with the type of sources cited."
+    return "strongly_supported", "supported", "Demo mode: claim appears consistent with the type of sources cited."
 
 
 def demo_trust_report(

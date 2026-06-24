@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css?v=12" />
+  <link rel="stylesheet" href="/static/styles.css?v=13" />
 </head>
 <body>
   <header class="header">
@@ -120,6 +120,42 @@
           </label>
         </div>
         <button type="button" id="reset-weights" class="btn-secondary btn-small">Reset defaults</button>
+      </details>
+
+      <details class="weights-panel hidden" id="trust-weights-panel">
+        <summary>
+          Trust score weights
+          <span id="trust-weight-total" class="weight-total">100%</span>
+        </summary>
+        <p class="weights-hint">Tune how the Trust Score balances evidence, citation quality, source authority, freshness, and missing context.</p>
+        <div class="weight-grid">
+          <label class="weight-field">
+            <span>Claim support</span>
+            <input type="number" id="tw-claim_support" min="0" max="100" value="35" />
+            <span class="weight-suffix">%</span>
+          </label>
+          <label class="weight-field">
+            <span>Source quality</span>
+            <input type="number" id="tw-source_quality" min="0" max="100" value="25" />
+            <span class="weight-suffix">%</span>
+          </label>
+          <label class="weight-field">
+            <span>Citation accuracy</span>
+            <input type="number" id="tw-citation_accuracy" min="0" max="100" value="25" />
+            <span class="weight-suffix">%</span>
+          </label>
+          <label class="weight-field">
+            <span>Freshness</span>
+            <input type="number" id="tw-freshness" min="0" max="100" value="5" />
+            <span class="weight-suffix">%</span>
+          </label>
+          <label class="weight-field">
+            <span>Bias / context</span>
+            <input type="number" id="tw-bias_context" min="0" max="100" value="10" />
+            <span class="weight-suffix">%</span>
+          </label>
+        </div>
+        <button type="button" id="reset-trust-weights" class="btn-secondary btn-small">Reset defaults</button>
       </details>
 
       <button type="button" id="submit" class="btn-primary">
@@ -257,6 +293,8 @@
             </div>
           </div>
 
+          <div class="trust-source-summary hidden" id="trust-source-summary"></div>
+
           <div class="category-grid" id="category-grid"></div>
 
           <div class="tabs">
@@ -287,6 +325,6 @@
     </p>
   </footer>
 
-  <script src="/static/app.js?v=12"></script>
+  <script src="/static/app.js?v=13"></script>
 </body>
 </html>

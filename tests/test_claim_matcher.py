@@ -3,6 +3,7 @@
 from backend.claim_matcher import (
     _fallback_match,
     build_support_summary,
+    domain_from_url,
     match_claims_to_sources,
     support_label_to_status,
 )
@@ -81,3 +82,7 @@ def test_match_claims_without_sources():
     ]
     matched = match_claims_to_sources(claims, [])
     assert matched[0].support_label == "source_unavailable"
+
+
+def test_domain_from_url_strips_www_prefix():
+    assert domain_from_url("https://www.ncbi.nlm.nih.gov/articles/123") == "ncbi.nlm.nih.gov"

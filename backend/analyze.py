@@ -6,6 +6,7 @@ from google.genai import types
 
 from backend.api_errors import is_recoverable_api_error
 from backend.confidence import apply_confidence
+from backend.claim_matcher import build_support_summary, match_claims_to_sources
 from backend.demo_trust import demo_trust_report
 from backend.demo_trust_screenshot import demo_trust_screenshot_report
 from backend.gemini_client import generate_with_fallback, get_client

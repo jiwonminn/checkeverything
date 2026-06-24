@@ -539,6 +539,14 @@ const DEFAULT_REVIEW_WEIGHTS = {
   test_coverage: 25,
 };
 
+const DEFAULT_TRUST_WEIGHTS = {
+  claim_support: 35,
+  source_quality: 25,
+  citation_accuracy: 25,
+  freshness: 5,
+  bias_context: 10,
+};
+
 const AGENT_WEIGHT_KEYS = {
   "Security Agent": "security",
   "Correctness Agent": "correctness",
@@ -555,10 +563,20 @@ const WEIGHT_FIELDS = [
   ["w-test_coverage", "test_coverage"],
 ];
 
+const TRUST_WEIGHT_FIELDS = [
+  ["tw-claim_support", "claim_support"],
+  ["tw-source_quality", "source_quality"],
+  ["tw-citation_accuracy", "citation_accuracy"],
+  ["tw-freshness", "freshness"],
+  ["tw-bias_context", "bias_context"],
+];
+
 const WEIGHTS_STORAGE_KEY = "checkeverything-review-weights";
+const TRUST_WEIGHTS_STORAGE_KEY = "checkeverything-trust-weights";
 
 let submissionMode = "code";
 let reviewWeights = { ...DEFAULT_REVIEW_WEIGHTS };
+let trustWeights = { ...DEFAULT_TRUST_WEIGHTS };
 let appliedScoreWeights = null;
 
 const codeEl = document.getElementById("code");
@@ -569,8 +587,11 @@ const languageEl = document.getElementById("language");
 const contextEl = document.getElementById("context");
 const contextRowEl = document.getElementById("context-row");
 const weightsPanelEl = document.getElementById("weights-panel");
+const trustWeightsPanelEl = document.getElementById("trust-weights-panel");
 const weightTotalEl = document.getElementById("weight-total");
+const trustWeightTotalEl = document.getElementById("trust-weight-total");
 const resetWeightsBtn = document.getElementById("reset-weights");
+const resetTrustWeightsBtn = document.getElementById("reset-trust-weights");
 const submitBtn = document.getElementById("submit");
 const loadSampleBtn = document.getElementById("load-sample");
 const loadDiffSampleBtn = document.getElementById("load-diff-sample");
@@ -616,11 +637,26 @@ function readReviewWeights() {
   return weights;
 }
 
+function readTrustWeights() {
+  const weights = {};
+  for (const [elementId, key] of TRUST_WEIGHT_FIELDS) {
+    weights[key] = Number(document.getElementById(elementId).value) || 0;
+  }
+  return weights;
+}
+
 function setReviewWeightInputs(weights) {
   for (const [elementId, key] of WEIGHT_FIELDS) {
     document.getElementById(elementId).value = weights[key];
   }
   updateWeightTotal();
+}
+
+function setTrustWeightInputs(weights) {
+  for (const [elementId, key] of TRUST_WEIGHT_FIELDS) {
+    document.getElementById(elementId).value = weights[key];
+  }
+  updateTrustWeightTotal();
 }
 
 function updateWeightTotal() {
@@ -630,6 +666,18 @@ function updateWeightTotal() {
   weightTotalEl.classList.toggle("invalid", total !== 100);
   try {
     localStorage.setItem(WEIGHTS_STORAGE_KEY, JSON.stringify(reviewWeights));
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
+function updateTrustWeightTotal() {
+  trustWeights = readTrustWeights();
+  const total = Object.values(trustWeights).reduce((sum, value) => sum + value, 0);
+  trustWeightTotalEl.textContent = `${total}%`;
+  trustWeightTotalEl.classList.toggle("invalid", total !== 100);
+  try {
+    localStorage.setItem(TRUST_WEIGHTS_STORAGE_KEY, JSON.stringify(trustWeights));
   } catch {
     /* ignore storage errors */
   }
@@ -649,12 +697,34 @@ function loadStoredWeights() {
   setReviewWeightInputs(DEFAULT_REVIEW_WEIGHTS);
 }
 
+function loadStoredTrustWeights() {
+  try {
+    const stored = localStorage.getItem(TRUST_WEIGHTS_STORAGE_KEY);
+    if (stored) {
+      trustWeights = { ...DEFAULT_TRUST_WEIGHTS, ...JSON.parse(stored) };
+      setTrustWeightInputs(trustWeights);
+      return;
+    }
+  } catch {
+    /* ignore */
+  }
+  setTrustWeightInputs(DEFAULT_TRUST_WEIGHTS);
+}
+
 WEIGHT_FIELDS.forEach(([elementId]) => {
   document.getElementById(elementId).addEventListener("input", updateWeightTotal);
 });
 
+TRUST_WEIGHT_FIELDS.forEach(([elementId]) => {
+  document.getElementById(elementId).addEventListener("input", updateTrustWeightTotal);
+});
+
 resetWeightsBtn.addEventListener("click", () => {
   setReviewWeightInputs(DEFAULT_REVIEW_WEIGHTS);
+});
+
+resetTrustWeightsBtn.addEventListener("click", () => {
+  setTrustWeightInputs(DEFAULT_TRUST_WEIGHTS);
 });
 
 document.querySelectorAll(".sub-tab").forEach((tab) => {
@@ -797,6 +867,7 @@ function updateModeUI() {
   const isTrust = submissionMode === "trust";
   contextRowEl.classList.toggle("hidden", isTrust);
   weightsPanelEl.classList.toggle("hidden", isTrust);
+  trustWeightsPanelEl.classList.toggle("hidden", !isTrust);
   introCodeEl.classList.toggle("hidden", isTrust);
   introTrustEl.classList.toggle("hidden", !isTrust);
   if (!submitBtn.disabled) {
@@ -909,7 +980,7 @@ async function runTrustAnalyze() {
     const res = await fetch("/api/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, urls, source: "other" }),
+      body: JSON.stringify({ text, urls, source: "other", weights: readTrustWeights() }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(formatApiError(data.detail, res.status));
@@ -1055,6 +1126,9 @@ function clearTrustResults() {
   document.getElementById("trust-overall-score").textContent = "—";
   document.getElementById("trust-headline").textContent = "Analyzing claims and sources…";
   document.getElementById("trust-summary").textContent = "";
+  const sourceSummary = document.getElementById("trust-source-summary");
+  sourceSummary.innerHTML = "";
+  sourceSummary.classList.add("hidden");
   document.getElementById("category-grid").innerHTML = "";
   document.getElementById("claims-list").innerHTML = "";
   document.getElementById("sources-list").innerHTML = "";
@@ -1065,14 +1139,16 @@ function renderTrustResults(data) {
   document.getElementById("trust-overall-score").textContent = data.overall_score;
   document.getElementById("trust-headline").textContent = data.headline || "";
   document.getElementById("trust-summary").textContent = data.support_summary || "";
+  renderTrustSourceSummary(data.source_summary);
 
   document.getElementById("category-grid").innerHTML = Object.entries(CATEGORY_LABELS)
     .map(([key, label]) => {
       const cat = data.categories?.[key];
       if (!cat) return "";
+      const weight = trustWeights[key] ?? DEFAULT_TRUST_WEIGHTS[key];
       return `
         <div class="category-card">
-          <h3>${escapeHtml(label)}</h3>
+          <h3>${escapeHtml(label)} <span class="category-weight">${weight}%</span></h3>
           <div class="category-score">${cat.score}</div>
           <p>${escapeHtml(cat.summary || "")}</p>
         </div>`;
@@ -1092,6 +1168,8 @@ function renderTrustResults(data) {
             <p class="claim-text">${escapeHtml(claim.text)}</p>
             ${claim.matched_source ? `<p class="claim-source"><strong>Source:</strong> ${escapeHtml(claim.matched_source)}</p>` : ""}
             ${claim.evidence_note || claim.note ? `<p class="claim-note">${escapeHtml(claim.evidence_note || claim.note)}</p>` : ""}
+            ${claim.confidence_note ? `<p class="claim-note">${escapeHtml(claim.confidence_note)}</p>` : ""}
+            ${claim.citations?.length ? `<div class="claim-citations">${claim.citations.map((url) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(formatCitationLabel(url))}</a>`).join("")}</div>` : ""}
           </li>`;
       }).join("")
     : '<li class="claim-card"><p class="claim-text">No individual claims extracted.</p></li>';
@@ -1110,6 +1188,36 @@ function renderTrustResults(data) {
     : '<li class="source-card"><p>No cited URLs provided or detected.</p></li>';
 
   document.querySelector("#trust-json-output code").textContent = JSON.stringify(data, null, 2);
+}
+
+function renderTrustSourceSummary(summary) {
+  const el = document.getElementById("trust-source-summary");
+  if (!summary) {
+    el.innerHTML = "";
+    el.classList.add("hidden");
+    return;
+  }
+  const issues = summary.issues || [];
+  el.innerHTML = `
+    <div>
+      <strong>${summary.reachable_count}/${summary.sources_checked}</strong>
+      sources reachable
+    </div>
+    <div>
+      <strong>${summary.primary_official_count}</strong>
+      primary or official
+    </div>
+    ${issues.length ? `<ul>${issues.map((issue) => `<li>${escapeHtml(issue)}</li>`).join("")}</ul>` : ""}
+  `;
+  el.classList.remove("hidden");
+}
+
+function formatCitationLabel(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }
 
 function clearResults() {
@@ -1267,5 +1375,6 @@ function renderMarkdown(md) {
 
 updateCharCount();
 loadStoredWeights();
+loadStoredTrustWeights();
 updateModeUI();
 updateIntroState();

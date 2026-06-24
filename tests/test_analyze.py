@@ -10,6 +10,7 @@ from backend.trust_models import (
     CategoryAssessment,
     CategoryScore,
     ClaimDraft,
+    CheckedSource,
     TrustAnalysisDraft,
 )
 
@@ -82,3 +83,69 @@ def test_analyze_response_in_demo_mode(monkeypatch):
     )
     assert result.analysis_type == "preliminary"
     assert result.overall_score >= 0
+
+
+def test_analyze_with_gemini_enriches_claims_with_source_matches(monkeypatch):
+    from backend import analyze
+
+    draft = TrustAnalysisDraft(
+        claims=[
+            ClaimDraft(
+                text="Exercise can improve sleep quality.",
+                status="unclear",
+                related_citations=["https://example.org/sleep"],
+                note="",
+            )
+        ],
+        claim_support=CategoryAssessment(score=60, summary="Some support."),
+        source_quality=CategoryAssessment(score=70, summary="Reachable source."),
+        citation_accuracy=CategoryAssessment(score=50, summary="Citation needs checking."),
+        freshness=CategoryAssessment(score=80, summary="Recent enough."),
+        bias_context=CategoryAssessment(score=75, summary="Balanced."),
+        headline="Needs source verification",
+        support_summary="Draft summary",
+    )
+    source = CheckedSource(
+        url="https://example.org/sleep",
+        domain="example.org",
+        reachable=True,
+        status_code=200,
+        page_text="Exercise can improve sleep quality for many adults.",
+        source_quality="medium",
+    )
+
+    class FakeResponse:
+        text = draft.model_dump_json()
+
+    monkeypatch.setattr(analyze, "get_client", lambda: object())
+    monkeypatch.setattr(analyze, "generate_with_fallback", lambda *args, **kwargs: FakeResponse())
+    monkeypatch.setattr(
+        analyze,
+        "match_claims_to_sources",
+        lambda claims, sources: [
+            analyze.apply_confidence(
+                analyze.ClaimAnalysis(
+                    text=claims[0].text,
+                    status="strongly_supported",
+                    citations=[source.url],
+                    matched_source=source.url,
+                    support_label="supported",
+                    evidence_note="The source excerpt supports the claim.",
+                )
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        analyze,
+        "build_support_summary",
+        lambda claims: "Claim-source matching: 1/1 claims had supporting or partial source evidence.",
+    )
+
+    result = analyze._analyze_with_gemini(
+        AnalyzeRequest(text="Exercise can improve sleep quality.", urls=[source.url]),
+        [source],
+    )
+
+    assert result.claims[0].support_label == "supported"
+    assert result.claims[0].matched_source == source.url
+    assert result.support_summary.startswith("Claim-source matching: 1/1")

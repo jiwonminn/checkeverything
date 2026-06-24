@@ -1022,6 +1022,15 @@ input[type="text"] {
   color: var(--text-muted);
   font-weight: 500;
   margin-bottom: 0.25rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.category-weight {
+  color: var(--accent-light);
+  font-size: 0.66rem;
+  font-weight: 600;
 }
 
 .category-card .category-score {
@@ -1040,6 +1049,32 @@ input[type="text"] {
   font-size: 0.85rem;
   color: var(--text-muted);
   margin-top: 0.35rem;
+}
+
+.trust-source-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.65rem;
+  margin: -0.35rem 0 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.trust-source-summary strong {
+  display: block;
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.trust-source-summary ul {
+  grid-column: 1 / -1;
+  padding-left: 1.1rem;
+  color: var(--yellow);
 }
 
 .claims-list,
@@ -1093,6 +1128,23 @@ input[type="text"] {
 .claim-note {
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+.claim-citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.claim-citations a {
+  color: var(--accent-light);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.68rem;
+  text-decoration: none;
 }
 
 .source-card.reachable { border-left-color: var(--green); }
