@@ -4,11 +4,19 @@
   <meta charset="UTF-8" />
   <title>checkeverything Options</title>
   <style>
-    body { font-family: system-ui, sans-serif; padding: 16px; max-width: 400px; }
+    body { font-family: system-ui, sans-serif; padding: 16px; max-width: 420px; }
     label { display: block; margin-bottom: 12px; font-size: 14px; }
-    input { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+    input[type="url"], input[type="number"] { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
     button { padding: 8px 16px; background: #4285f4; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
     #status { margin-top: 12px; font-size: 13px; color: #34a853; }
+    h3 { margin: 24px 0 8px; font-size: 15px; }
+    .weights-hint { font-size: 13px; color: #5f6368; margin: 0 0 12px; }
+    .weight-grid { display: grid; gap: 10px; }
+    .weight-field { display: grid; grid-template-columns: 1fr 72px; align-items: center; gap: 8px; margin-bottom: 0; }
+    .weight-field span:first-child { font-size: 13px; }
+    .weight-field input { margin-top: 0; text-align: right; }
+    #weightTotal { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+    #weightTotal.invalid { color: #d93025; }
   </style>
 </head>
 <body>
@@ -18,7 +26,36 @@
     API URL
     <input id="apiUrl" type="url" placeholder="http://localhost:8080" />
   </label>
-  <button id="save">Save</button>
+
+  <h3>Trust score weights</h3>
+  <p class="weights-hint">Tune how the Trust Score balances evidence, citation quality, source authority, freshness, and missing context. Values should total 100%.</p>
+  <div id="weightTotal">Total: 100%</div>
+  <div class="weight-grid">
+    <label class="weight-field">
+      <span>Claim support</span>
+      <input id="w_claim_support" type="number" min="0" max="100" value="35" />
+    </label>
+    <label class="weight-field">
+      <span>Source quality</span>
+      <input id="w_source_quality" type="number" min="0" max="100" value="25" />
+    </label>
+    <label class="weight-field">
+      <span>Citation accuracy</span>
+      <input id="w_citation_accuracy" type="number" min="0" max="100" value="25" />
+    </label>
+    <label class="weight-field">
+      <span>Bias / context</span>
+      <input id="w_bias_context" type="number" min="0" max="100" value="10" />
+    </label>
+    <label class="weight-field">
+      <span>Freshness</span>
+      <input id="w_freshness" type="number" min="0" max="100" value="5" />
+    </label>
+  </div>
+
+  <p style="margin-top: 20px;">
+    <button id="save">Save</button>
+  </p>
   <div id="status"></div>
   <script src="options.js"></script>
 </body>
