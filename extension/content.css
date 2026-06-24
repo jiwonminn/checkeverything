@@ -145,29 +145,101 @@
   color: #1a73e8;
 }
 
+.checkeverything-claims-section {
+  margin-top: 12px;
+}
+
+.checkeverything-claims-heading {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5f6368;
+  margin-bottom: 8px;
+}
+
+.checkeverything-claim-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.checkeverything-claim-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.checkeverything-claim-pill-supported {
+  background: #e6f4ea;
+  color: #137333;
+}
+
+.checkeverything-claim-pill-weakly_supported {
+  background: #fef7e0;
+  color: #b06000;
+}
+
+.checkeverything-claim-pill-not_supported {
+  background: #fce8e6;
+  color: #c5221f;
+}
+
+.checkeverything-claim-pill-unclear {
+  background: #f1f3f4;
+  color: #5f6368;
+}
+
+.checkeverything-claim-pill-source_unavailable {
+  background: #f3e8dc;
+  color: #8d6e63;
+}
+
 .checkeverything-claims {
-  margin: 10px 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .checkeverything-claim {
   margin-bottom: 8px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: #fff;
   border: 1px solid #e8eaed;
   border-radius: 8px;
 }
 
+.checkeverything-claim-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.checkeverything-claim-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.checkeverything-claim-status {
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .checkeverything-claim-text {
   font-weight: 500;
   margin-bottom: 4px;
-}
-
-.checkeverything-claim-meta {
-  font-size: 11px;
-  font-weight: 600;
-  color: #5f6368;
 }
 
 .checkeverything-claim-label {
@@ -191,24 +263,79 @@
   color: #3c4043;
 }
 
-.checkeverything-claim-supported,
-.checkeverything-claim-strongly_supported {
-  border-left: 3px solid #34a853;
+.checkeverything-claim-supported {
+  border-left: 4px solid #34a853;
+  background: #f6fff8;
+}
+
+.checkeverything-claim-supported .checkeverything-claim-icon {
+  background: #e6f4ea;
+  color: #137333;
+}
+
+.checkeverything-claim-supported .checkeverything-claim-status-supported {
+  color: #137333;
 }
 
 .checkeverything-claim-weakly_supported {
-  border-left: 3px solid #f9ab00;
+  border-left: 4px solid #f9ab00;
+  background: #fffdf5;
 }
 
-.checkeverything-claim-not_supported,
-.checkeverything-claim-unsupported {
-  border-left: 3px solid #d93025;
+.checkeverything-claim-weakly_supported .checkeverything-claim-icon {
+  background: #fef7e0;
+  color: #b06000;
 }
 
-.checkeverything-claim-unclear,
-.checkeverything-claim-outdated,
+.checkeverything-claim-weakly_supported .checkeverything-claim-status-weakly_supported {
+  color: #b06000;
+}
+
+.checkeverything-claim-not_supported {
+  border-left: 4px solid #d93025;
+  background: #fff8f7;
+}
+
+.checkeverything-claim-not_supported .checkeverything-claim-icon {
+  background: #fce8e6;
+  color: #c5221f;
+}
+
+.checkeverything-claim-not_supported .checkeverything-claim-status-not_supported {
+  color: #c5221f;
+}
+
+.checkeverything-claim-unclear {
+  border-left: 4px solid #9aa0a6;
+  background: #fafafa;
+}
+
+.checkeverything-claim-unclear .checkeverything-claim-icon {
+  background: #f1f3f4;
+  color: #5f6368;
+}
+
+.checkeverything-claim-unclear .checkeverything-claim-status-unclear {
+  color: #5f6368;
+}
+
 .checkeverything-claim-source_unavailable {
-  border-left: 3px solid #ea8600;
+  border-left: 4px solid #8d6e63;
+  background: #faf7f4;
+}
+
+.checkeverything-claim-source_unavailable .checkeverything-claim-icon {
+  background: #f3e8dc;
+  color: #8d6e63;
+}
+
+.checkeverything-claim-source_unavailable .checkeverything-claim-status-source_unavailable {
+  color: #8d6e63;
+}
+
+.checkeverything-claim-strongly_supported {
+  border-left: 4px solid #34a853;
+  background: #f6fff8;
 }
 
 .checkeverything-source-stats {

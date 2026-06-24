@@ -51,10 +51,55 @@ const CATEGORY_LABELS = {
 const SUPPORT_LABEL_LABELS = {
   supported: "Supported",
   weakly_supported: "Weakly supported",
-  not_supported: "Not supported",
+  not_supported: "Not clearly supported",
   unclear: "Unclear",
   source_unavailable: "Source unavailable",
 };
+
+const CLAIM_DISPLAY = {
+  supported: { icon: "✓", label: "Supported", priority: 4 },
+  weakly_supported: { icon: "~", label: "Weakly supported", priority: 1 },
+  not_supported: { icon: "!", label: "Not clearly supported", priority: 0 },
+  unclear: { icon: "?", label: "Unclear", priority: 2 },
+  source_unavailable: { icon: "×", label: "Source unavailable", priority: 3 },
+};
+
+const STATUS_TO_SUPPORT = {
+  strongly_supported: "supported",
+  weakly_supported: "weakly_supported",
+  unsupported: "not_supported",
+  unclear: "unclear",
+  outdated: "unclear",
+};
+
+function getClaimSupportKey(claim) {
+  return claim.support_label || STATUS_TO_SUPPORT[claim.status] || "unclear";
+}
+
+function getClaimDisplay(claim) {
+  return CLAIM_DISPLAY[getClaimSupportKey(claim)] || CLAIM_DISPLAY.unclear;
+}
+
+function sortClaimsForDisplay(claims) {
+  return [...claims].sort((a, b) => getClaimDisplay(a).priority - getClaimDisplay(b).priority);
+}
+
+function renderClaimSummary(claims) {
+  if (!claims.length) return "";
+  const counts = {};
+  claims.forEach((claim) => {
+    const key = getClaimSupportKey(claim);
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  const pills = Object.entries(CLAIM_DISPLAY)
+    .filter(([key]) => counts[key])
+    .map(
+      ([key, display]) =>
+        `<span class="checkeverything-claim-pill checkeverything-claim-pill-${key}">${display.icon} ${counts[key]} ${display.label}</span>`
+    )
+    .join("");
+  return `<div class="checkeverything-claim-summary">${pills}</div>`;
+}
 
 function getPlatform() {
   if (location.hostname.includes("google.") && location.pathname.startsWith("/search")) {
@@ -271,7 +316,7 @@ function renderSourcesList(sources) {
 function renderTrustPanel(data) {
   const copy = getTrustCopy(data.platform || "chatgpt");
   const categories = data.categories || {};
-  const claims = data.claims || [];
+  const claims = sortClaimsForDisplay(data.claims || []);
 
   const categoryRows = Object.entries(CATEGORY_LABELS)
     .map(([key, label]) => {
@@ -289,17 +334,18 @@ function renderTrustPanel(data) {
 
   const claimRows = claims
     .map((claim) => {
-      const status =
-        SUPPORT_LABEL_LABELS[claim.support_label] ||
-        SUPPORT_LABEL_LABELS[claim.status] ||
-        claim.status;
+      const supportKey = getClaimSupportKey(claim);
+      const display = getClaimDisplay(claim);
       const matchedDomain = sourceDomain(claim.matched_source);
       const note = claim.evidence_note || claim.note;
       return `
-        <li class="checkeverything-claim checkeverything-claim-${claim.support_label || claim.status}">
+        <li class="checkeverything-claim checkeverything-claim-${supportKey}">
+          <div class="checkeverything-claim-status-row">
+            <span class="checkeverything-claim-icon" aria-hidden="true">${display.icon}</span>
+            <span class="checkeverything-claim-status checkeverything-claim-status-${supportKey}">${escapeHtml(display.label)}</span>
+          </div>
           <div class="checkeverything-claim-label">Claim</div>
           <div class="checkeverything-claim-text">${escapeHtml(claim.text)}</div>
-          <div class="checkeverything-claim-meta"><strong>Status:</strong> ${escapeHtml(status)}</div>
           ${matchedDomain ? `<div class="checkeverything-claim-source"><strong>Source:</strong> ${escapeHtml(matchedDomain)}</div>` : ""}
           ${note ? `<div class="checkeverything-claim-note"><strong>Note:</strong> ${escapeHtml(note)}</div>` : ""}
         </li>
@@ -328,7 +374,7 @@ function renderTrustPanel(data) {
     </table>
     ${renderSourceSummary(data.source_summary)}
     ${renderSourcesList(data.sources)}
-    ${claims.length ? `<ul class="checkeverything-claims">${claimRows}</ul>` : ""}
+    ${claims.length ? `<div class="checkeverything-claims-section"><div class="checkeverything-claims-heading">Claims</div>${renderClaimSummary(claims)}<ul class="checkeverything-claims">${claimRows}</ul></div>` : ""}
     <small>Analysis type: ${escapeHtml(data.analysis_type || "preliminary")}</small>
   `;
 }
