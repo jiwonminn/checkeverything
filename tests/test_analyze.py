@@ -115,6 +115,55 @@ def test_analyze_response_uses_adk_when_enabled(monkeypatch):
     assert result.overall_score == 80
 
 
+def test_analyze_falls_back_when_adk_trust_pipeline_empty(monkeypatch):
+    monkeypatch.delenv("DEMO_MODE", raising=False)
+    monkeypatch.setenv("USE_ADK", "true")
+
+    from backend import analyze as analyze_module
+
+    def failing_adk(request, sources):
+        raise RuntimeError("ADK trust pipeline finished without extractor and matcher outputs.")
+
+    monkeypatch.setattr("backend.adk_trust_runner.analyze_with_adk", failing_adk)
+    monkeypatch.setattr(analyze_module, "check_sources", lambda urls: [])
+
+    draft = TrustAnalysisDraft(
+        claims=[
+            ClaimDraft(
+                text="Vitamin D supports bone health.",
+                status="strongly_supported",
+                related_citations=[],
+                note="",
+            )
+        ],
+        claim_support=CategoryAssessment(score=80, summary="Supported."),
+        source_quality=CategoryAssessment(score=80, summary="Good sources."),
+        citation_accuracy=CategoryAssessment(score=80, summary="Accurate."),
+        freshness=CategoryAssessment(score=80, summary="Recent."),
+        bias_context=CategoryAssessment(score=80, summary="Balanced."),
+        headline="Mostly supported",
+        support_summary="1/1 supported",
+    )
+
+    class FakeResponse:
+        text = draft.model_dump_json()
+
+    monkeypatch.setattr(analyze_module, "get_client", lambda: object())
+    monkeypatch.setattr(analyze_module, "generate_with_fallback", lambda *args, **kwargs: FakeResponse())
+    monkeypatch.setattr(
+        analyze_module,
+        "match_claims_to_sources",
+        lambda claims, sources: analyze_module.draft_to_response(draft, sources).claims,
+    )
+    monkeypatch.setattr(analyze_module, "build_support_summary", lambda claims: draft.support_summary)
+
+    result = analyze_module.analyze_response(
+        AnalyzeRequest(text="Vitamin D supports bone health according to several studies.")
+    )
+    assert result.pipeline == "gemini"
+    assert result.overall_score >= 0
+
+
 def test_analyze_with_gemini_enriches_claims_with_source_matches(monkeypatch):
     from backend import analyze
 

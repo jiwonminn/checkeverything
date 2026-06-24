@@ -14,5 +14,10 @@ def test_not_found_message_is_recoverable():
     assert is_recoverable_api_error(Exception("404 Not Found"))
 
 
+def test_adk_trust_pipeline_error_is_recoverable():
+    exc = RuntimeError("ADK trust pipeline finished without extractor and matcher outputs.")
+    assert is_recoverable_api_error(exc)
+
+
 def test_random_error_is_not_recoverable():
     assert not is_recoverable_api_error(ValueError("invalid input"))
