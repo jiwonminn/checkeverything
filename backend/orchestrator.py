@@ -19,6 +19,20 @@ from backend.prompts import AGENT_ORDER
 from backend.validation import validate_submission
 
 MAX_PARALLEL_AGENTS = 5
+CANONICAL_AGENT_NAMES = {
+    "security": "Security Agent",
+    "security_agent": "Security Agent",
+    "correctness": "Correctness Agent",
+    "correctness_agent": "Correctness Agent",
+    "correctness & logic": "Correctness Agent",
+    "readability": "Readability Agent",
+    "readability_agent": "Readability Agent",
+    "performance": "Performance Agent",
+    "performance_agent": "Performance Agent",
+    "test coverage": "Test Coverage Agent",
+    "test_coverage": "Test Coverage Agent",
+    "test_coverage_agent": "Test Coverage Agent",
+}
 
 
 def _demo_mode_enabled() -> bool:
@@ -40,12 +54,25 @@ def _google_technologies(pipeline: PipelineType) -> list[str]:
 
 def _sort_reports(reports: list[AgentFindingReport]) -> list[AgentFindingReport]:
     order = {name: idx for idx, name in enumerate(AGENT_ORDER)}
-    return sorted(reports, key=lambda r: order.get(r.agent_name, 99))
+    normalized = [_normalize_agent_report(report) for report in reports]
+    return sorted(normalized, key=lambda r: order.get(r.agent_name, 99))
+
+
+def _normalize_agent_report(report: AgentFindingReport) -> AgentFindingReport:
+    key = report.agent_name.strip().lower().replace("-", "_")
+    canonical = CANONICAL_AGENT_NAMES.get(key)
+    if canonical is None:
+        return report
+    return report.model_copy(update={"agent_name": canonical})
+
+
+def _normalize_review_report(report: ReviewReport) -> ReviewReport:
+    return report.model_copy(update={"agent_reports": _sort_reports(report.agent_reports)})
 
 
 def _wrap(report: ReviewReport, pipeline: PipelineType, started: float) -> ReviewResponse:
     return ReviewResponse(
-        report=report,
+        report=_normalize_review_report(report),
         pipeline=pipeline,
         model=get_model_name(),
         duration_ms=int((time.perf_counter() - started) * 1000),
@@ -63,9 +90,15 @@ def _run_agents_parallel(code: str, language: str, context: str) -> list[AgentFi
 
 
 def _is_recoverable_api_error(exc: Exception) -> bool:
-    if isinstance(exc, genai_errors.ClientError):
+    if isinstance(exc, genai_errors.APIError):
         msg = str(exc)
-        return "429" in msg or "RESOURCE_EXHAUSTED" in msg or "API_KEY_INVALID" in msg
+        return (
+            "429" in msg
+            or "503" in msg
+            or "RESOURCE_EXHAUSTED" in msg
+            or "UNAVAILABLE" in msg
+            or "API_KEY_INVALID" in msg
+        )
     for current in _exception_chain(exc):
         module = type(current).__module__
         name = type(current).__name__
@@ -82,9 +115,19 @@ def _is_recoverable_api_error(exc: Exception) -> bool:
         if isinstance(current, RuntimeError) and (
             "GEMINI_API_KEY is not set" in msg
             or "ADK pipeline finished without a coordinator report" in msg
+            or "503 UNAVAILABLE" in msg
+            or "RESOURCE_EXHAUSTED" in msg
         ):
             return True
     return False
+
+
+def _is_quota_or_availability_error(exc: Exception) -> bool:
+    return any(
+        token in str(current)
+        for current in _exception_chain(exc)
+        for token in ("429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE")
+    )
 
 
 def _exception_chain(exc: Exception) -> Iterator[BaseException]:
@@ -93,6 +136,10 @@ def _exception_chain(exc: Exception) -> Iterator[BaseException]:
     while current is not None and id(current) not in seen:
         seen.add(id(current))
         yield current
+        if isinstance(current, BaseExceptionGroup):
+            for nested in current.exceptions:
+                if isinstance(nested, Exception):
+                    yield from _exception_chain(nested)
         current = current.__cause__ or current.__context__
 
 
@@ -110,6 +157,12 @@ def review_code(code: str, language: str = "python", context: str = "") -> Revie
         except Exception as exc:
             if not _is_recoverable_api_error(exc):
                 raise
+            if _is_quota_or_availability_error(exc):
+                report = demo_review_report(code, language, context)
+                report.executive_summary += (
+                    " (Live ADK/Gemini unavailable — demo report shown. Check API quota.)"
+                )
+                return _wrap(report, "demo", started)
 
     try:
         reports = _run_agents_parallel(code, language, context)

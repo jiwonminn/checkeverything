@@ -3,8 +3,8 @@
 import pytest
 
 from backend.demo_report import demo_review_report
-from backend.models import ReviewResponse
-from backend.orchestrator import _is_recoverable_api_error, review_code
+from backend.models import AgentFindingReport, ReviewResponse
+from backend.orchestrator import _is_recoverable_api_error, _sort_reports, review_code
 from backend.validation import validate_submission
 
 
@@ -30,6 +30,20 @@ def test_demo_mode_returns_response(monkeypatch):
     assert len(result.report.agent_reports) == 5
 
 
+def test_adk_quota_error_falls_back_to_demo(monkeypatch):
+    monkeypatch.delenv("DEMO_MODE", raising=False)
+    monkeypatch.setenv("USE_ADK", "true")
+
+    def raise_quota_error(*_args, **_kwargs):
+        raise RuntimeError("429 RESOURCE_EXHAUSTED")
+
+    monkeypatch.setattr("backend.orchestrator.review_code_with_adk", raise_quota_error)
+
+    result = review_code(SAMPLE, "python", "unit test")
+    assert result.pipeline == "demo"
+    assert len(result.report.agent_reports) == 5
+
+
 def test_demo_report_has_five_agents():
     report = demo_review_report(SAMPLE, "python", "test")
     assert len(report.agent_reports) == 5
@@ -44,9 +58,30 @@ def test_demo_report_has_action_items():
     assert report.verdict in ("approve", "request_changes", "reject")
 
 
+def test_agent_report_names_are_normalized():
+    reports = [
+        AgentFindingReport(
+            agent_name="test_coverage_agent",
+            perspective="tests",
+            score=80,
+            summary="ok",
+            findings=[],
+        )
+    ]
+
+    assert _sort_reports(reports)[0].agent_name == "Test Coverage Agent"
+
+
 def test_missing_api_key_error_is_recoverable():
     error = RuntimeError(
         "GEMINI_API_KEY is not set. Get one at https://aistudio.google.com/apikey"
+    )
+    assert _is_recoverable_api_error(error)
+
+
+def test_model_unavailable_error_is_recoverable():
+    error = RuntimeError(
+        "503 UNAVAILABLE. This model is currently experiencing high demand."
     )
     assert _is_recoverable_api_error(error)
 

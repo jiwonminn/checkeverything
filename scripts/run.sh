@@ -33,5 +33,11 @@ pick_port() {
 PORT="${PORT:-$(pick_port 8080)}"
 echo "→ Starting checkeverything at http://localhost:${PORT}"
 echo "  Google ADK multi-agent pipeline enabled (USE_ADK=true)"
+echo "  Set RELOAD=true for development auto-reload"
 echo "  Press Ctrl+C to stop"
-uvicorn backend.server:app --reload --port "$PORT"
+
+if [[ "${RELOAD:-false}" == "true" ]]; then
+  uvicorn backend.server:app --reload --port "$PORT"
+else
+  uvicorn backend.server:app --port "$PORT"
+fi
