@@ -6,7 +6,7 @@ const CE_LOCAL_DEV_API = "http://localhost:8080";
 const CE_DEFAULT_API = CE_CLOUD_API;
 const CE_CONFIG_VERSION = 3;
 const CE_CONFIG_STORAGE_KEY = "checkeverything_config";
-const CE_REQUEST_TIMEOUT_MS = 90_000;
+const CE_REQUEST_TIMEOUT_MS = 150_000;
 const CE_DEFAULT_WEIGHTS = {
   claim_support: 35,
   source_quality: 25,

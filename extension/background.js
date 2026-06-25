@@ -5,6 +5,10 @@ const CE_TAB_URLS = [
   "https://chat.openai.com/*",
   "https://www.google.com/search*",
   "https://google.com/search*",
+  "http://localhost:8080/demo/*",
+  "http://127.0.0.1:8080/demo/*",
+  "https://checkeverything-jgaheeinfq-pd.a.run.app/demo/*",
+  "https://*.a.run.app/demo/*",
 ];
 
 function ceTabMatches(url) {
@@ -12,7 +16,9 @@ function ceTabMatches(url) {
   return (
     url.startsWith("https://chatgpt.com/") ||
     url.startsWith("https://chat.openai.com/") ||
-    url.includes("google.com/search")
+    url.includes("google.com/search") ||
+    url.includes("/demo/chatgpt") ||
+    url.includes("/demo/google")
   );
 }
 

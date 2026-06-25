@@ -1,4 +1,4 @@
-const CE_SCRIPT_VERSION = "1.2.3";
+const CE_SCRIPT_VERSION = "1.2.4";
 
 if (typeof window.__checkeverythingTeardown === "function") {
   try {
@@ -12,7 +12,7 @@ window.__checkeverythingVersion = CE_SCRIPT_VERSION;
 const BADGE_CLASS = "checkeverything-badge";
 const WRAP_CLASS = "checkeverything-badge-wrap";
 const ATTACHED_ATTR = "data-checkeverything-attached";
-const ANALYSIS_TIMEOUT_MS = CE_REQUEST_TIMEOUT_MS + 5_000;
+const ANALYSIS_TIMEOUT_MS = CE_REQUEST_TIMEOUT_MS + 10_000;
 
 async function runAnalysisRequest(payload) {
   const result = await ceRunRequest(payload);
@@ -230,32 +230,32 @@ function findAssistantAttachTarget(messageEl) {
 function collectChatGPTAssistantTargets() {
   const targets = new Set();
 
-  const turnSelectors = [
-    'article[data-testid^="conversation-turn-"]',
-    '[data-testid^="conversation-turn"]',
-    '[data-testid="conversation-turn"]',
+  const assistantSelectors = [
+    '[data-message-author-role="assistant"]',
+    '[data-role="assistant"]',
+    '[data-message-author="assistant"]',
+    ".agent-turn",
   ];
-
-  for (const selector of turnSelectors) {
-    document.querySelectorAll(selector).forEach((turn) => {
-      if (isAssistantTurn(turn)) {
-        targets.add(findAssistantAttachTarget(turn));
-      }
+  for (const selector of assistantSelectors) {
+    document.querySelectorAll(selector).forEach((messageEl) => {
+      targets.add(findAssistantAttachTarget(messageEl));
     });
     if (targets.size) break;
   }
 
   if (!targets.size) {
-    const assistantSelectors = [
-      '[data-message-author-role="assistant"]',
-      '[data-role="assistant"]',
-      '[data-message-author="assistant"]',
-      ".agent-turn",
+    const turnSelectors = [
+      'article[data-testid^="conversation-turn-"]',
+      '[data-testid^="conversation-turn"]',
+      '[data-testid="conversation-turn"]',
     ];
-    for (const selector of assistantSelectors) {
-      document.querySelectorAll(selector).forEach((messageEl) => {
-        targets.add(findAssistantAttachTarget(messageEl));
+    for (const selector of turnSelectors) {
+      document.querySelectorAll(selector).forEach((turn) => {
+        if (isAssistantTurn(turn)) {
+          targets.add(findAssistantAttachTarget(turn));
+        }
       });
+      if (targets.size) break;
     }
   }
 
@@ -333,6 +333,7 @@ function extractContainerText(element) {
 
 function extractMessageContent(element) {
   const contentSelectors = [
+    ".ds-markdown",
     '[class*="markdown"]',
     '[class*="prose"]',
     ".prose",
@@ -380,10 +381,22 @@ function extractChatGPTUrls(rootEl) {
 
 function extractCodeBlocks(element) {
   const blocks = [];
-  element.querySelectorAll("pre code, pre").forEach((el) => {
-    const text = el.textContent?.trim();
-    if (text && text.length > 20) blocks.push(text);
-  });
+  const roots = [
+    element.querySelector(".ds-markdown"),
+    element.querySelector('[class*="markdown"]'),
+    element.querySelector(".prose"),
+    element,
+  ].filter(Boolean);
+  const seen = new Set();
+  for (const root of roots) {
+    root.querySelectorAll("pre code, pre").forEach((el) => {
+      const text = el.textContent?.trim();
+      if (text && text.length > 20 && !seen.has(text)) {
+        seen.add(text);
+        blocks.push(text);
+      }
+    });
+  }
   return blocks;
 }
 
